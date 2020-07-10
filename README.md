@@ -29,7 +29,7 @@
 
 ### Description
 
-**Rotterdam** is a native-cloud Infrastructure-as-a-Service (IaaS) facade which facilitates the deployment and life cycle management of containerized tasks on container orchestration platforms. Its main purpose is to upload, organize, run, manage and stop sets of containers (named tasks) through API calls, and abstract all the resource infrastructure details, even the concept of cluster of machines/instances, to micro-service developers (in the case of CLASS, data analytics application/service developers).
+**Rotterdam** is a native-cloud Container-as-a-Service (CaaS) layer which facilitates the deployment and life cycle management of containerized tasks on container orchestration platforms. Its main purpose is to upload, organize, run, manage and stop sets of containers (named tasks) through API calls, and abstract all the resource infrastructure details, even the concept of cluster of machines/instances, to micro-service developers (in the case of CLASS, data analytics application/service developers).
 
 ![rotterdam](images/class_rotterdam.png)
 
@@ -286,6 +286,11 @@ The following methods have been defined:
 
 ### LICENSE
 
+Apache 2.0
+
+By downloading this software, the downloader agrees with the specified terms and conditions of the License Agreement and the particularities of the license provided.
+
+
 Libraries used in this project:
 
 | library                         | license | url                                   | description |
@@ -294,4 +299,3 @@ Libraries used in this project:
 | github.com/nikunjy/rules/parser | MIT | https://github.com/nikunjy/rules | Rules engine written in golang with the help of antlr |
 
 
-`Rotterdam` is licensed under [Apache License, version 2](LICENSE.TXT).
