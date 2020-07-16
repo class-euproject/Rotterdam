@@ -19,19 +19,21 @@
 package impl
 
 import (
+	urls "atos/rotterdam/caas/adapters"
 	common "atos/rotterdam/caas/common"
 	structs "atos/rotterdam/caas/common/structs"
-	cfg "atos/rotterdam/config"
+	imec_db "atos/rotterdam/imec/db"
 	"errors"
 	"log"
 	"strconv"
 )
 
 // getK8sScale: k8s: get scale info
-func getK8sScale(task structs.CLASS_TASK) (*structs.K8S_SCALE, error) {
+func getK8sScale(task structs.CLASS_TASK, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (*structs.K8S_SCALE, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [getK8sScale] Getting scaling info from task [" + task.Name + "] ...")
-	_, data, err := common.HttpGET_String(
-		cfg.Config.Clusters[0].KubernetesEndPoint + "/apis/apps/v1/namespaces/" + task.Dock + "/deployments/" + task.Name + "/scale")
+	_, data, err := common.HTTPGETString(
+		urls.GetPathKubernetesScaleDeployment(cluster, task.Dock, task.ID),
+		true)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [getK8sScale] ERROR", err)
 		return nil, err
@@ -42,11 +44,12 @@ func getK8sScale(task structs.CLASS_TASK) (*structs.K8S_SCALE, error) {
 }
 
 // updateK8sScale: k8s: update scale info => scale up / down
-func updateK8sScale(task structs.CLASS_TASK, scale_obj structs.K8S_SCALE) (string, error) {
+func updateK8sScale(task structs.CLASS_TASK, scaleObj structs.K8S_SCALE, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [updateK8sScale] Updating scaling info from task [" + task.Name + "] ...")
-	status, _, err := common.HttpPUT_GenericStruct(
-		cfg.Config.Clusters[0].KubernetesEndPoint+"/apis/apps/v1/namespaces/"+task.Dock+"/deployments/"+task.Name+"/scale",
-		scale_obj)
+	status, _, err := common.HTTPPUTStruct(
+		urls.GetPathKubernetesScaleDeployment(cluster, task.Dock, task.ID),
+		true,
+		scaleObj)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [updateK8sScale] ERROR", err)
 		return "", err
@@ -56,22 +59,47 @@ func updateK8sScale(task structs.CLASS_TASK, scale_obj structs.K8S_SCALE) (strin
 	return strconv.Itoa(status), nil
 }
 
-// ScaleUpDown: Scale up task
-func ScaleUpDown(dbtask structs.DB_TASK, replicas int) (string, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] Scaling up/down task [" + dbtask.TaskDefinition.Name + "] ...")
+/*
+ScaleUpDown Scale out / in a task
+*/
+func ScaleUpDown(dbTask structs.DB_TASK, replicas int) (string, error) {
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] Scaling up/down task [" + dbTask.TaskDefinition.Name + "] ...")
 
-	scale_obj, err := getK8sScale(dbtask.TaskDefinition)
+	clusterInfr, _ := imec_db.GetCluster(dbTask.ClusterId)
+	task := dbTask.TaskDefinition
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] cluster=" + clusterInfr.ID)
+
+	scaleObj, err := getK8sScale(task, clusterInfr)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] ERROR (1) ", err)
 		return "", err
-	} else {
-		scale_obj.Spec.Replicas = replicas
-		status, err := updateK8sScale(dbtask.TaskDefinition, *scale_obj)
-		if err == nil {
-			return status, nil
-		}
-		err = errors.New("Task creation failed. status = [" + status + "]")
-		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] ERROR (2) ", err)
-		return "", err
 	}
+
+	scaleObj.Spec.Replicas = replicas
+	status, err := updateK8sScale(task, *scaleObj, clusterInfr)
+	if err == nil {
+		if err == nil {
+			if dbTask.Type == structs.DB_TASK_TYPE_DEFAULT {
+				// update task information: replicas
+				dbTask.Replicas = replicas
+				task.Replicas = replicas
+				err = common.SetTaskValue(dbTask.Id, dbTask)
+			} else if dbTask.Type == structs.DB_TASK_TYPE_COMPSS {
+				// create / remove services nad update task info
+				go func() {
+					log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] Starting background tasks...")
+					dbTask = CompssScalingUpdateServices(clusterInfr, dbTask, replicas)
+					_ = common.SetTaskValue(dbTask.Id, dbTask)
+					log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] Background tasks completed")
+				}()
+			} else {
+				log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] WARNING type of task is not defined: " + dbTask.Type)
+			}
+		}
+		return status, nil
+	}
+
+	err = errors.New("Task creation failed. status = [" + status + "]")
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Scaling [ScaleUpDown] ERROR (2) ", err)
+	return "", err
 }

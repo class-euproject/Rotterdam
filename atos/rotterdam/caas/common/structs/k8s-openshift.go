@@ -36,9 +36,38 @@ type K8S_DEPLOYMENT_CONTAINER struct {
 	ImagePullPolicy string                           `json:"imagePullPolicy,omitempty"`
 	Ports           []K8S_DEPLOYMENT_CONTAINER_PORTS `json:"ports,omitempty"`
 	Env             []K8S_DEPLOYMENT_CONTAINER_ENV   `json:"env,omitempty"`
+	Command         []string                         `json:"command,omitempty"`
+	Args            []string                         `json:"args,omitempty"`
 }
 
 type K8S_DEPLOYMENT struct {
+	ApiVersion string `json:"apiVersion,omitempty"`
+	Kind       string `json:"kind,omitempty"`
+	Metadata   struct {
+		Name string `json:"name,omitempty"`
+	} `json:"metadata,omitempty"`
+	Spec struct {
+		Replicas             int `json:"replicas,omitempty"`
+		RevisionHistoryLimit int `json:"revisionHistoryLimit,omitempty"`
+		Selector             struct {
+			MatchLabels struct {
+				App string `json:"app,omitempty"`
+			} `json:"matchLabels,omitempty"`
+		} `json:"selector,omitempty"`
+		Template struct {
+			Metadata struct {
+				Labels struct {
+					App string `json:"app,omitempty"`
+				} `json:"labels,omitempty"`
+			} `json:"metadata,omitempty"`
+			Spec struct {
+				Containers []K8S_DEPLOYMENT_CONTAINER `json:"containers,omitempty"`
+			} `json:"spec,omitempty"`
+		} `json:"template,omitempty"`
+	} `json:"spec,omitempty"`
+}
+
+type K8S_JOB struct {
 	ApiVersion string `json:"apiVersion,omitempty"`
 	Kind       string `json:"kind,omitempty"`
 	Metadata   struct {
@@ -146,4 +175,54 @@ type K8S_POD_PATCH_LINE struct {
 	Op    string `json:"op,omitempty"`
 	Path  string `json:"path,omitempty"`
 	Value string `json:"value,omitempty"`
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// FUNCTIONS - SERVERLESS - KUBELESS
+
+/*
+KubelessFunctionStruct ...
+	JSON EXAMPLE:
+		{
+			"apiVersion": "kubeless.io/v1beta1",
+			"kind": "Function",
+			"metadata": {
+				"name": "get-python",
+				"namespace": "default",
+				"label": {
+					"created-by": "kubeless",
+					"function": "get-python"
+				}
+			},
+			"spec": {
+				"runtime": "python2.7",
+				"timeout": "180",
+				"handler": "helloget.foo",
+				"deps": "",
+				"checksum": "sha256:d251999dcbfdeccec385606fd0aec385b214cfc74ede8b6c9e47af71728f6e9a",
+				"function-content-type": "text",
+				"function": "def foo(event, context):\n    return \"hello world\"\n"
+			}
+		}
+*/
+type KubelessFunctionStruct struct {
+	APIVersion string `json:"apiVersion,omitempty"`
+	Kind       string `json:"kind,omitempty"`
+	Metadata   struct {
+		Name      string `json:"name,omitempty"`
+		NameSpace string `json:"namespace,omitempty"`
+		Label     struct {
+			CreatedBy string `json:"created-by,omitempty"`
+			Function  string `json:"function,omitempty"`
+		} `json:"label,omitempty"`
+	} `json:"metadata,omitempty"`
+	Spec struct {
+		Runtime             string `json:"runtime,omitempty"`
+		Timeout             string `json:"timeout,omitempty"`
+		Handler             string `json:"handler,omitempty"`
+		Deps                string `json:"deps,omitempty"`
+		Checksum            string `json:"checksum,omitempty"`
+		FunctionContentType string `json:"function-content-type,omitempty"`
+		Function            string `json:"function,omitempty"`
+	} `json:"spec,omitempty"`
 }

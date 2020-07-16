@@ -19,70 +19,39 @@
 package impl
 
 import (
+	adapt_common "atos/rotterdam/caas/adapters/common"
 	common "atos/rotterdam/caas/common"
 	structs "atos/rotterdam/caas/common/structs"
-	cfg "atos/rotterdam/config"
+	imec_db "atos/rotterdam/imec/db"
 	"errors"
 	"log"
-	"strconv"
+	"strings"
 )
 
-// k8sDeployment: k8s: deployment
-func k8sDeployment(namespace string, task structs.CLASS_TASK) (string, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sDeployment] Generating 'deployment' json ...")
-	k8s_depl := common.StructNewDeploymentTemplate(task, 1) // returns *K8S_DEPLOYMENT
-
-	str_txt, _ := common.CommDeploymentStructToString(*k8s_depl)
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sDeployment] [" + str_txt + "]")
-
-	// CALL to Kubernetes API to launch a new deployment
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sDeployment] Creating a new deployment in K8s cluster ...")
-	status, _, err := common.HttpPOST_GenericStruct( //common.MOCKUP_HttpPOST_GenericStruct(
-		cfg.Config.Clusters[0].KubernetesEndPoint+"/apis/apps/v1/namespaces/"+namespace+"/deployments",
-		k8s_depl)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sDeployment] ERROR", err)
-		return "", err
-	}
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sDeployment] RESPONSE: OK")
-
-	return strconv.Itoa(status), nil
-}
-
-// k8sService: k8s: service
-func k8sService(namespace string, task structs.CLASS_TASK) (string, int, string, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sService] Generating 'service' json ...")
-	k8s_serv, main_port, main_port_name := common.StructNewServiceTempalte(task) // returns *K8S_SERVICE
-
-	str_txt, _ := common.CommServiceStructToString(*k8s_serv)
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sService] [" + str_txt + "]")
-
-	// CALL to Kubernetes API to launch a new service
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sService] Creating a new service in K8s cluster ...")
-	status, _, err := common.HttpPOST_GenericStruct( //MOCKUP_HttpPOST_GenericStruct( //.HttpPOST_GenericStruct(
-		cfg.Config.Clusters[0].KubernetesEndPoint+"/api/v1/namespaces/"+namespace+"/services",
-		k8s_serv)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sService] ERROR", err)
-		return "", -1, "", err
-	}
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [k8sService] RESPONSE: OK")
-
-	return strconv.Itoa(status), main_port, main_port_name, nil
-}
-
-// DeployTask: Deploy a task (k8s: deployment & service & volumes ...)
-func DeployTask(namespace string, task structs.CLASS_TASK) (string, error) {
+/*
+DeployTask Deploy a task (k8s: deployment & service & volumes ...)
+*/
+func DeployTask(task structs.CLASS_TASK) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTask] Deploying new task ...")
 
+	clusterInfr, _ := imec_db.GetCluster(task.Cluster)
+	clusterID := ""
+	clusterHost := ""
+	if clusterInfr != nil {
+		clusterID = clusterInfr.ID
+		clusterHost = clusterInfr.HostIP
+	}
+	namespace := task.Dock
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTask] cluster id = " + clusterID + ", dock = " + namespace + ", host = " + clusterHost + "")
+
 	// 1. DEPLOYMENT /////
-	status, err := k8sDeployment(namespace, task)
+	status, err := adapt_common.K8sDeployment(namespace, task, clusterInfr, false)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTask] ERROR (1)", err)
 		return "", err
 	} else if status == "200" || status == "201" {
 		// 2. SERVICE /////
-		status, _, _, err := k8sService(namespace, task)
+		status, _, _, err := adapt_common.K8sService(namespace, task, clusterInfr, false)
 		if err != nil {
 			log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTask] ERROR (2)", err)
 			return "", err
@@ -90,15 +59,22 @@ func DeployTask(namespace string, task structs.CLASS_TASK) (string, error) {
 			log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTask] Task deployed with success")
 			// save to DB
 			dbtask := &structs.DB_TASK{
-				Id:             task.Name,
+				DbId:           structs.DB_TABLE_TASK,
+				Id:             task.ID,
 				Name:           task.Name,
 				NameSpace:      namespace,
-				Type:           "default",
-				Url:            "http://" + task.Name + "." + cfg.Config.Clusters[0].ServerIP + ".xip.io",
+				Type:           structs.DB_TASK_TYPE_DEFAULT,
+				ClusterId:      clusterID,
+				AgreementId:    strings.Replace(task.ID, "-", "_", -1),
+				Url:            "http://" + task.ID + "." + clusterHost + ".xip.io",
 				Status:         "Deployed",
-				Replicas:       1,
+				Replicas:       task.Replicas,
 				TaskDefinition: task}
-			common.SetTaskValue(task.Name, *dbtask)
+
+			err = common.SetTaskValue(task.ID, *dbtask)
+			if err != nil {
+				log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTask] ERROR (3)", err)
+			}
 
 			return "ok", nil
 		}
@@ -109,12 +85,22 @@ func DeployTask(namespace string, task structs.CLASS_TASK) (string, error) {
 	return "", err
 }
 
-// DeployTaskCompss: Deploy a COMPSs task (k8s: deployment & service & volumes ...)
-func DeployTaskCompss(namespace string, task structs.CLASS_TASK) (string, error) {
+/*
+DeployTaskCompss Deploy a COMPSs task (k8s: deployment & service & volumes ...)
+*/
+func DeployTaskCompss(task structs.CLASS_TASK) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTaskCompss] Deploying new task ...")
 
+	clusterInfr, _ := imec_db.GetCluster(task.Cluster)
+	clusterID := ""
+	if clusterInfr != nil {
+		clusterID = clusterInfr.ID
+	}
+	namespace := task.Dock
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTaskCompss] cluster id = " + clusterID + ", dock = " + namespace)
+
 	// 1. DEPLOYMENT /////
-	status, err := k8sDeployment(namespace, task)
+	status, err := adapt_common.K8sDeployment(namespace, task, clusterInfr, false)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTaskCompss] ERROR (1)", err)
 		return "", err
@@ -122,15 +108,23 @@ func DeployTaskCompss(namespace string, task structs.CLASS_TASK) (string, error)
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTaskCompss] Task deployed with success")
 		// save to DB
 		dbtask := &structs.DB_TASK{
-			Id:             task.Name,
+			DbId:           structs.DB_TABLE_TASK,
+			Id:             task.ID,
 			Name:           task.Name,
 			NameSpace:      namespace,
-			Type:           "compss",
-			Url:            "http://" + task.Name + "." + cfg.Config.Clusters[0].ServerIP + ".xip.io",
+			Type:           structs.DB_TASK_TYPE_COMPSS,
+			ClusterId:      clusterID,
+			AgreementId:    strings.Replace(task.ID, "-", "_", -1),
 			Status:         "Deployed",
-			Replicas:       1,
+			Replicas:       task.Replicas,
 			TaskDefinition: task}
-		common.SetTaskValue(task.Name, *dbtask)
+		common.SetTaskValue(task.ID, *dbtask)
+
+		go func() {
+			log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTaskCompss] Starting background tasks...")
+			adapt_common.CompssDeploymentBackgroundTasks(task, clusterInfr)
+			log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Deployment [DeployTaskCompss] Background tasks completed")
+		}()
 
 		return "ok", nil
 	}

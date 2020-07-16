@@ -24,10 +24,10 @@ import (
 
 // generic adapter
 type Adapter interface {
-	DeployTask(cluster int, namespace string, task structs.CLASS_TASK) (string, error)
-	DeployTaskCompss(cluster int, namespace string, task structs.CLASS_TASK) (string, error)
-	GetTask(cluster int, namespace string, name string) (structs.DB_TASK, error)
+	DeployTask(task structs.CLASS_TASK) (string, error)
+	DeployTaskCompss(task structs.CLASS_TASK) (string, error)
+	GetTaskAllInfo(id string) (structs.DB_TASK, error)
 	GetConfig() (string, error)
-	ScaleUpDown(cluster int, dbtask structs.DB_TASK, replicas int) (string, error)
-	RemoveTask(cluster int, namespace string, name string) (string, error)
+	ScaleUpDown(dbtask structs.DB_TASK, replicas int) (string, error)
+	RemoveTask(dbtask structs.DB_TASK) (string, string, error)
 }

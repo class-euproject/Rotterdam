@@ -1,10 +1,64 @@
 [
     {
+        "type": "app-compss",
+        "guaranteeName": "Default_COMPSs",
+        "maxAllowed": 0,
+        "action": "scale_out",
+        "scaleFactor": 1.5,
+        "guarantees": [
+            {
+                "name": "deadlines_missed",
+                "constraint": "deadlines_missed < 1"
+            }
+        ]
+    },{
+        "type": "app-compss",
+        "guaranteeName": "DeadlinesMissed_1",
+        "maxAllowed": 0,
+        "action": "scale_out",
+        "scaleFactor": 1.5,
+        "guarantees": [
+            {
+                "name": "deadlines_missed",
+                "constraint": "deadlines_missed < 1"
+            }
+        ]
+    },{
+        "type": "app-compss",
+        "guaranteeName": "DeadlinesMissed_2",
+        "maxAllowed": 0,
+        "action": "scale_out",
+        "scaleFactor": 1.5,
+        "guarantees": [
+            {
+                "name": "deadlines_missed_1",
+                "constraint": "deadlines_missed < 5"
+            },
+            {
+                "name": "deadlines_missed_2",
+                "constraint": "deadlines_missed < 2"
+            }
+        ]
+    },
+    {
+        "type": "infr",
+        "guaranteeName": "ManyDeadlines",
+        "maxAllowed": 2,
+        "action": "scale_out",
+        "scaleFactor": 1.5,
+        "guarantees": [
+            {
+                "name": "deadlines_missed",
+                "constraint": "deadlines_missed > 1"
+            }
+        ]
+    },
+	{
         "type": "infr",
         "guaranteeName": "KubeletTooManyPods",
         "maxAllowed": 2,
-        "action": "scale_down",
-        "scaleFactor": 2,
+        "action": "scale_in",
+        "scaleFactor": 0.5,
         "guarantees": [
             {
                 "name": "kubelet_running_pod_count",
@@ -16,8 +70,8 @@
         "type": "infr",
         "guaranteeName": "KubeletPodsLessThan100",
         "maxAllowed": 2,
-        "action": "scale_down",
-        "scaleFactor": 2,
+        "action": "scale_in",
+        "scaleFactor": 0.5,
         "guarantees": [
             {
                 "name": "kubelet_running_pod_count",
@@ -29,8 +83,8 @@
         "type": "infr",
         "guaranteeName": "KubeletTooFewPods",
         "maxAllowed": 2,
-        "action": "scale_up",
-        "scaleFactor": 2,
+        "action": "scale_out",
+        "scaleFactor": 1.5,
         "guarantees": [
             {
                 "name": "kubelet_running_pod_count",
@@ -42,8 +96,8 @@
         "type": "infr",
         "guaranteeName": "Test_Prometheus_01",
         "maxAllowed": 3,
-        "action": "scale_up",
-        "scaleFactor": 2,
+        "action": "scale_out",
+        "scaleFactor": 1.5,
         "guarantees": [
             {
                 "name": "go_memstats_frees_total",

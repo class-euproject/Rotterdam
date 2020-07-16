@@ -15,6 +15,7 @@
 // Created on 28 May 2019
 // @author: Roi Sucasas - ATOS
 //
+
 package common
 
 import (
@@ -25,13 +26,17 @@ import (
 	"github.com/tidwall/buntdb"
 )
 
-// DATABASE
+/*
+RDatabase DATABASE
+*/
 var RDatabase *buntdb.DB = InitDB()
 
-// InitDB: initializes database
+/*
+InitDB  initializes database
+*/
 func InitDB() *buntdb.DB {
 	log.Println("Rotterdam > CAAS > DB [InitDB] Initializating Database ...")
-	//db, err := buntdb.Open("data.db")
+	// db, err := buntdb.Open("data.db")
 	RDatabase, err := buntdb.Open(":memory:") // Open a file that does not persist to disk.
 	if err != nil {
 		log.Println("Rotterdam > CAAS > DB [InitDB] ERROR", err)
@@ -40,7 +45,9 @@ func InitDB() *buntdb.DB {
 	return RDatabase
 }
 
-// CloseDB: Closes database
+/*
+CloseDB Closes database
+*/
 func CloseDB() {
 	log.Println("Rotterdam > CAAS > DB [CloseDB] Closing Database ...")
 	defer RDatabase.Close()
@@ -49,14 +56,16 @@ func CloseDB() {
 ///////////////////////////////////////////////////////////////////////////////
 // DB_TASK
 
-// SetTaskValue:
+/*
+SetTaskValue ...
+*/
 func SetTaskValue(id string, dbtask structs.DB_TASK) error {
 	id = strings.Replace(id, structs.DB_TASK_PREFIX, "", 1)
 
-	dbtask_str, err := CommDbTaskStructToString(dbtask)
+	dbtaskStr, err := CommDbTaskStructToString(dbtask)
 	if err == nil {
 		err = RDatabase.Update(func(tx *buntdb.Tx) error {
-			_, _, err := tx.Set(structs.DB_TASK_PREFIX+id, dbtask_str, nil)
+			_, _, err := tx.Set(structs.DB_TASK_PREFIX+id, dbtaskStr, nil)
 			return err
 		})
 	}
@@ -64,27 +73,31 @@ func SetTaskValue(id string, dbtask structs.DB_TASK) error {
 	return err
 }
 
-// ReadTaskValue:
+/*
+ReadTaskValue ...
+*/
 func ReadTaskValue(id string) (*structs.DB_TASK, error) {
 	id = strings.Replace(id, structs.DB_TASK_PREFIX, "", 1)
 
 	dbtask := &structs.DB_TASK{}
 	err := RDatabase.View(func(tx *buntdb.Tx) error {
-		dbtask_str, err := tx.Get(structs.DB_TASK_PREFIX + id)
+		dbtaskStr, err := tx.Get(structs.DB_TASK_PREFIX + id)
 		if err != nil {
 			log.Println("Rotterdam > CAAS > DB [ReadTaskValue] ERROR", err)
 			return err
 		}
-		log.Println("Rotterdam > CAAS > DB [ReadTaskValue] [DB_TASK=" + dbtask_str + "]")
 
-		dbtask, err = CommStringToDbTaskStruct(dbtask_str)
+		log.Println("Rotterdam > CAAS > DB [ReadTaskValue] [DB_TASK=" + dbtaskStr + "]")
+		dbtask, err = CommStringToDbTaskStruct(dbtaskStr)
 		return err
 	})
 
 	return dbtask, err
 }
 
-// DBDeleteTask:
+/*
+DBDeleteTask ...
+*/
 func DBDeleteTask(id string) (string, error) {
 	id = strings.Replace(id, structs.DB_TASK_PREFIX, "", 1)
 
@@ -94,6 +107,7 @@ func DBDeleteTask(id string) (string, error) {
 			log.Println("Rotterdam > CAAS > DB [DBDeleteTask] ERROR", err)
 			return err
 		}
+
 		log.Println("Rotterdam > CAAS > DB [DBDeleteTask] Task (" + structs.DB_TASK_PREFIX + ")" + id + " deleted [" + res + "]")
 		return err
 	})
@@ -101,7 +115,9 @@ func DBDeleteTask(id string) (string, error) {
 	return id, err
 }
 
-// DBReadAllTasks:
+/*
+DBReadAllTasks ...
+*/
 func DBReadAllTasks() ([]structs.DB_TASK, error) {
 	log.Println("Rotterdam > CAAS > DB [DBReadAllTasks] Getting All tasks ...")
 	var dbtasks []structs.DB_TASK
@@ -113,9 +129,9 @@ func DBReadAllTasks() ([]structs.DB_TASK, error) {
 			dbtask, err := CommStringToDbTaskStruct(value)
 			if err == nil && dbtask.DbId == structs.DB_TABLE_TASK {
 				dbtasks = append(dbtasks, *dbtask)
-				//return true
 			}
-			return true //false
+
+			return true
 		})
 		return err2
 	})
@@ -123,7 +139,9 @@ func DBReadAllTasks() ([]structs.DB_TASK, error) {
 	return dbtasks, err
 }
 
-// DBReadAllDockTasks:
+/*
+DBReadAllDockTasks ...
+*/
 func DBReadAllDockTasks(dock string) ([]structs.DB_TASK, error) {
 	log.Println("Rotterdam > CAAS > DB [DBReadAllTasks] Getting All tasks from namespace [" + dock + "] ...")
 	var dbtasks []structs.DB_TASK
@@ -135,9 +153,9 @@ func DBReadAllDockTasks(dock string) ([]structs.DB_TASK, error) {
 			dbtask, err := CommStringToDbTaskStruct(value)
 			if err == nil && dbtask.DbId == structs.DB_TABLE_TASK && dbtask.NameSpace == dock {
 				dbtasks = append(dbtasks, *dbtask)
-				//return true
 			}
-			return true //false
+
+			return true
 		})
 		return nil
 	})
@@ -148,14 +166,16 @@ func DBReadAllDockTasks(dock string) ([]structs.DB_TASK, error) {
 ///////////////////////////////////////////////////////////////////////////////
 // DB_TASK_QOS
 
-// SetTaskQoSValue:
+/*
+SetTaskQoSValue ...
+*/
 func SetTaskQoSValue(id string, dbtaskqos structs.DB_TASK_QOS) error {
 	id = strings.Replace(id, structs.DB_TASK_QOS_PREFIX, "", 1)
 
-	dbtaskqos_str, err := CommDbTaskQoSStructToString(dbtaskqos)
+	dbtaskqosStr, err := CommDbTaskQoSStructToString(dbtaskqos)
 	if err == nil {
 		err = RDatabase.Update(func(tx *buntdb.Tx) error {
-			_, _, err := tx.Set(structs.DB_TASK_QOS_PREFIX+id, dbtaskqos_str, nil)
+			_, _, err := tx.Set(structs.DB_TASK_QOS_PREFIX+id, dbtaskqosStr, nil)
 			return err
 		})
 	}
@@ -163,27 +183,54 @@ func SetTaskQoSValue(id string, dbtaskqos structs.DB_TASK_QOS) error {
 	return err
 }
 
-// ReadTaskQoSValue:
+/*
+ReadTaskQoSValue ...
+*/
 func ReadTaskQoSValue(id string) (*structs.DB_TASK_QOS, error) {
 	id = strings.Replace(id, structs.DB_TASK_QOS_PREFIX, "", 1)
 
 	dbtaskqos := &structs.DB_TASK_QOS{}
 	err := RDatabase.View(func(tx *buntdb.Tx) error {
-		dbtaskqos_str, err := tx.Get(structs.DB_TASK_QOS_PREFIX + id)
+		dbtaskqosStr, err := tx.Get(structs.DB_TASK_QOS_PREFIX + id)
 		if err != nil {
 			log.Println("Rotterdam > CAAS > DB [ReadTaskQoSValue] ERROR", err)
 			return err
 		}
-		log.Println("Rotterdam > CAAS > DB [ReadTaskQoSValue] [DB_TASK_QOS=" + dbtaskqos_str + "]")
 
-		dbtaskqos, err = CommStringToDbTaskQoSStruct(dbtaskqos_str)
+		log.Println("Rotterdam > CAAS > DB [ReadTaskQoSValue] [DB_TASK_QOS=" + dbtaskqosStr + "]")
+		dbtaskqos, err = CommStringToDbTaskQoSStruct(dbtaskqosStr)
 		return err
 	})
 
 	return dbtaskqos, err
 }
 
-// DBDeleteTaskQos:
+/*
+DBReadTasksQosByAgreement ...
+
+func DBReadTasksQosByAgreement(idAgreement string) ([]structs.DB_TASK_QOS, error) {
+	dbtasksqos := make([]structs.DB_TASK_QOS, 0)
+	err := RDatabase.View(func(tx *buntdb.Tx) error {
+		err := tx.Ascend("", func(key, value string) bool {
+			dbtaskqos, err := CommStringToDbTaskQoSStruct(value)
+			if err != nil {
+				log.Println("Rotterdam > CAAS > DB [DBReadTasksQosByAgreement] ERROR", err)
+				return false
+			}
+
+			dbtasksqos = append(dbtasksqos, *dbtaskqos)
+			log.Println("Rotterdam > CAAS > DB [DBReadTasksQosByAgreement] key: " + key + ", value: " + value)
+			return true
+		})
+		return err
+	})
+
+	return dbtasksqos, err
+}*/
+
+/*
+DBDeleteTaskQos ...
+*/
 func DBDeleteTaskQos(id string) (string, error) {
 	id = strings.Replace(id, structs.DB_TASK_QOS_PREFIX, "", 1)
 
@@ -193,6 +240,7 @@ func DBDeleteTaskQos(id string) (string, error) {
 			log.Println("Rotterdam > CAAS > DB [DBDeleteTaskQos] ERROR", err)
 			return err
 		}
+
 		log.Println("Rotterdam > CAAS > DB [DBDeleteTaskQos] TaskQoS (" + structs.DB_TASK_QOS_PREFIX + ")" + id + " deleted [" + res + "]")
 		return err
 	})
@@ -200,7 +248,9 @@ func DBDeleteTaskQos(id string) (string, error) {
 	return id, err
 }
 
-// DBReadAllTasksQos:
+/*
+DBReadAllTasksQos ...
+*/
 func DBReadAllTasksQos() ([]structs.DB_TASK_QOS, error) {
 	dbtasksqos := make([]structs.DB_TASK_QOS, 0)
 	err := RDatabase.View(func(tx *buntdb.Tx) error {
@@ -210,12 +260,13 @@ func DBReadAllTasksQos() ([]structs.DB_TASK_QOS, error) {
 				if err != nil {
 					log.Println("Rotterdam > CAAS > DB [DBReadAllTasksQos] ERROR", err)
 					return false
-				} else {
-					dbtasksqos = append(dbtasksqos, *dbtaskqos)
-					log.Println("Rotterdam > CAAS > DB [DBReadAllTasksQos] key: " + key + ", value: " + value)
-					return true
 				}
+
+				dbtasksqos = append(dbtasksqos, *dbtaskqos)
+				log.Println("Rotterdam > CAAS > DB [DBReadAllTasksQos] key: " + key + ", value: " + value)
+				return true
 			}
+
 			return false
 		})
 		return err

@@ -1,0 +1,350 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "0.0.9.4",
+    "title": "Rotterdam CaaS",
+    "description": "Rotterdam CaaS REST API is responsible for the deployment of tasks and docks in a Kubernetes cluster"
+  },
+  "schemes": [
+    "http"
+  ],
+  "host": "rotterdam-caas.192.168.7.28.xip.io",
+  "basePath": "/api/v1",
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/": {
+      "description": "status of the rest api server",
+      "summary": "status of the rest api server",
+      "get": {
+        "operationId": "CaaS REST API status",
+        "responses": {
+          "200": {
+            "description": "REST API server information"
+          }
+        }
+      }
+    },
+    "/config": {
+      "description": "returns the content of the configuration file user to connect to K8s",
+      "summary": "content of the configuration file user to connect to K8s",
+      "get": {
+        "operationId": "Kubernetes Configuration File",
+        "responses": {
+          "200": {
+            "description": "Kubernetes Configuration File content"
+          }
+        }
+      }
+    },
+    "/docks/{dock}/tasks": {
+      "description": "Operations on namespaces (docks), like the creation of a task",
+      "summary": "Operations on namespaces (docks), like the creation of a task",
+      "get": {
+        "tags": [
+          "dock"
+        ],
+        "operationId": "Get list of Tasks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dock",
+            "description": "namespace or logical group of the tasks",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tasks' list retrived"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dock"
+        ],
+        "operationId": "Create New Task",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dock",
+            "description": "namespace or logical group of the tasks",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Task Created",
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/docks/{dock}/tasks/{name}": {
+      "description": "Operations on tasks",
+      "summary": "Operations on tasks",
+      "get": {
+        "tags": [
+          "task"
+        ],
+        "operationId": "Get Task",
+        "parameters": [
+          {
+            "name": "dock",
+            "description": "namespace or logical group of the tasks",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "description": "name the task",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task get",
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Task Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "task"
+        ],
+        "operationId": "Update Task",
+        "parameters": [
+          {
+            "name": "dock",
+            "description": "namespace or logical group of the tasks",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "description": "name the task",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task get",
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Task Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "task"
+        ],
+        "operationId": "Delete Task",
+        "parameters": [
+          {
+            "name": "dock",
+            "description": "namespace or logical group of the tasks",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "description": "name the task",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task get",
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Task Not Found"
+          }
+        }
+      }
+    },
+    "/rules-engine/docks/{dock}/tasks/{name}/sla": {
+      "description": "SLA Events (processed by Rules Engine)",
+      "summary": "SLA Events (processed by Rules Engine)",
+      "post": {
+        "tags": [
+          "rules-engine"
+        ],
+        "operationId": "Process Event",
+        "parameters": [
+          {
+            "name": "dock",
+            "description": "namespace or logical group of the tasks",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "description": "name the task",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task get",
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Task Not Found"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Task": {
+      "description": "A representation of a Rotterdam Task",
+      "type": "object",
+      "required": [
+        "name qos containers"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "example": "my-nginx"
+        },
+        "qos": {
+          "type": "object",
+          "example": {
+          }
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name image ports"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "example": "my-nginx-app"
+              },
+              "image": {
+                "type": "string",
+                "example": "nginx"
+              },
+              "essential": {
+                "type": "boolean",
+                "example": true
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "containerPort": {
+                      "type": "int",
+                      "example": 80
+                    },
+                    "hostPort": {
+                      "type": "int",
+                      "example": 80
+                    },
+                    "protocol": {
+                      "type": "string",
+                      "example": "tcp"
+                    }
+                  }
+                }
+              },
+              "volumes": {
+                "type": "object",
+                "example": {
+                }
+              },
+              "environment": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "example": "TEST_ENV_VALUE"
+                    },
+                    "value": {
+                      "type": "string",
+                      "example": "a.b.c"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

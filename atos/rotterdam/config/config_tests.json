@@ -1,0 +1,51 @@
+{
+    "CaaSVersion": "1.7.10",
+    "FaaSVersion": "1.0.0",
+    "RulesEngineVersion": "1.0.2",
+    "RestApiVersion": "1.7.10",
+    "IMECVersion": "0.0.3",
+    "SLALiteVersion": "0.6.13",
+    "ServerPort": 8333,
+    "Clusters": [{
+        "ID": "maincluster",
+        "Name": "Default",
+        "Description": "Main cluster",
+        "DefaultDock": "class",
+        "Type": "Openshift",
+        "SO": "centos",
+        "KubernetesEndPoint": "http://192.168.7.28:8001",
+        "OpenshiftEndPoint": "https://192.168.7.28:8443",
+        "HostIP": "192.168.7.28",
+        "OpenshiftOauthToken": "eyJhbGciOiJSUzI1NiI....QMOlOIwYBH2OTZ4L5CPyftiuExZEUBMCq2LPZFd-CpDZvrQG9eDD2l1EDp37bHwOrZ5VeNboaV7Iw",
+        "SLALiteEndPoint": "http://rotterdam-slalite.192.168.7.28.xip.io",
+        "PrometheusPushgatewayEndPoint": "http://pushgateway.192.168.7.28.xip.io"
+    },
+    {
+        "ID": "microk8s_1",
+        "Name": "microk8s_1",
+        "Description": "microk8s in Edge device",
+        "DefaultDock": "default",
+        "Type": "microk8s",
+        "SO": "ubuntu18",
+        "KubernetesEndPoint": "http://192.168.1.34:8001",
+        "HostIP": "192.168.1.34",
+        "SLALiteEndPoint": "http://192.168.1.34:8090",
+        "PrometheusPushgatewayEndPoint": "http://pushgateway.192.168.7.28.xip.io",
+        "User": "vagrant",
+        "Password": "vagrant",
+        "HostPort": 22
+    }],
+    "SLAs": {
+        "CreationDate": "2019-01-01T00:00:00Z",
+        "ExpirationDate": "2024-01-01T00:00:00Z"
+    },
+    "Tasks": {
+        "MaxReplicas": 30,
+        "MinReplicas": 1,
+        "MaxAllowed": 2,
+        "ScaleFactor": 1.25,
+        "Value": 2,
+        "Comparator": "<",
+        "Action": "scale_out"
+    }
+}

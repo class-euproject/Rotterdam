@@ -20,17 +20,18 @@ package common
 
 import (
 	structs "atos/rotterdam/caas/common/structs"
+	cfg "atos/rotterdam/config"
+	constants "atos/rotterdam/globals/constants"
+	imec_db "atos/rotterdam/imec/db"
 	"encoding/json"
 	"log"
-	cfg "atos/rotterdam/config"
+	"strconv"
 )
 
 /*
- * CommClassQoSTemplateListToString: Parses a struct to a string
- */
- func CommClassQoSTemplateListToString(ct cfg.CLASS_QOS_TEMPLATE_LIST) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommClassQoSTemplateListToString] json object / struct to string ...")
-
+CommClassQoSTemplateListToString Parses a struct to a string
+*/
+func CommClassQoSTemplateListToString(ct cfg.CLASS_QOS_TEMPLATE_LIST) (string, error) {
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > structs-funcs [CommClassQoSTemplateListToString] ERROR", err)
@@ -41,11 +42,9 @@ import (
 }
 
 /*
- * CommClassStructToString: Parses a struct to a string
- */
+CommClassStructToString Parses a struct to a string
+*/
 func CommClassStructToString(ct structs.CLASS_TASK) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommClassStructToString] json object / struct to string ...")
-
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > structs-funcs [CommClassStructToString] ERROR", err)
@@ -56,11 +55,22 @@ func CommClassStructToString(ct structs.CLASS_TASK) (string, error) {
 }
 
 /*
- * CommDeploymentStructToString: Parses a struct to a string
- */
-func CommDeploymentStructToString(ct structs.K8S_DEPLOYMENT) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommDeploymentStructToString] json object / struct [K8S_DEPLOYMENT] to string ...")
+CommClassCOMPSsStructToString Parses a struct to a string
+*/
+func CommClassCOMPSsStructToString(ct structs.CLASS_COMPSS_TASK) (string, error) {
+	out, err := json.Marshal(ct)
+	if err != nil {
+		log.Println("Rotterdam > CAAS > structs-funcs [CommClassCOMPSsStructToString] ERROR", err)
+		return "", err
+	}
 
+	return string(out), nil
+}
+
+/*
+CommDeploymentStructToString Parses a struct to a string
+*/
+func CommDeploymentStructToString(ct structs.K8S_DEPLOYMENT) (string, error) {
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > common [CommDeploymentStructToString] ERROR", err)
@@ -71,11 +81,9 @@ func CommDeploymentStructToString(ct structs.K8S_DEPLOYMENT) (string, error) {
 }
 
 /*
- * CommServiceStructToString: Parses a struct to a string
- */
+CommServiceStructToString Parses a struct to a string
+*/
 func CommServiceStructToString(ct structs.K8S_SERVICE) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommServiceStructToString] json object / struct [K8S_SERVICE] to string ...")
-
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > common [CommServiceStructToString] ERROR", err)
@@ -86,11 +94,9 @@ func CommServiceStructToString(ct structs.K8S_SERVICE) (string, error) {
 }
 
 /*
- * CommRouteStructToString: Parses a struct to a string
- */
+CommRouteStructToString Parses a struct to a string
+*/
 func CommRouteStructToString(ct structs.K8S_ROUTE) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommRouteStructToString] json object / struct [K8S_ROUTE] to string ...")
-
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > common [CommRouteStructToString] ERROR", err)
@@ -100,13 +106,10 @@ func CommRouteStructToString(ct structs.K8S_ROUTE) (string, error) {
 	return string(out), nil
 }
 
-
 /*
- * CommPatchPodsListToString: Parses a struct to a string
- */
- func CommPatchPodsListToString(ct []structs.K8S_POD_PATCH_LINE) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommPatchPodsListToString] json object / struct [K8S_POD_PATCH_LINE] to string ...")
-
+CommPatchPodsListToString Parses a struct to a string
+*/
+func CommPatchPodsListToString(ct []structs.K8S_POD_PATCH_LINE) (string, error) {
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > common [CommPatchPodsListToString] ERROR", err)
@@ -116,13 +119,10 @@ func CommRouteStructToString(ct structs.K8S_ROUTE) (string, error) {
 	return string(out), nil
 }
 
-
 /*
- * CommDbTaskStructToString: Parses a struct to a string
- */
+CommDbTaskStructToString Parses a struct to a string
+*/
 func CommDbTaskStructToString(ct structs.DB_TASK) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommDbTaskStructToString] json object / struct [DB_TASK] to string ...")
-
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > common [CommDbTaskStructToString] ERROR", err)
@@ -133,11 +133,9 @@ func CommDbTaskStructToString(ct structs.DB_TASK) (string, error) {
 }
 
 /*
- * CommDbTaskQoSStructToString: Parses a struct to a string
- */
+CommDbTaskQoSStructToString Parses a struct to a string
+*/
 func CommDbTaskQoSStructToString(ct structs.DB_TASK_QOS) (string, error) {
-	log.Println("Rotterdam > CAAS > common [CommDbTaskQoSStructToString] json object / struct [DB_TASK_QOS] to string ...")
-
 	out, err := json.Marshal(ct)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > common [CommDbTaskQoSStructToString] ERROR", err)
@@ -148,11 +146,22 @@ func CommDbTaskQoSStructToString(ct structs.DB_TASK_QOS) (string, error) {
 }
 
 /*
- * CommStringToDbTaskStruct: Parses a string to a struct of type DB_TASK
- */
-func CommStringToDbTaskStruct(ct string) (*structs.DB_TASK, error) {
-	log.Println("Rotterdam > CAAS > common [CommStringToDbTaskStruct] string tp json object / struct [DB_TASK]  ...")
+CommSLAStructToString Parses a struct to a string
+*/
+func CommSLAStructToString(ct structs.SLA_AGREEMENT) (string, error) {
+	out, err := json.Marshal(ct)
+	if err != nil {
+		log.Println("Rotterdam > CAAS > common [CommSLAStructToString] ERROR", err)
+		return "", err
+	}
 
+	return string(out), nil
+}
+
+/*
+CommStringToDbTaskStruct Parses a string to a struct of type DB_TASK
+*/
+func CommStringToDbTaskStruct(ct string) (*structs.DB_TASK, error) {
 	data := &structs.DB_TASK{}
 	err := json.Unmarshal([]byte(ct), data)
 	if err != nil {
@@ -164,11 +173,9 @@ func CommStringToDbTaskStruct(ct string) (*structs.DB_TASK, error) {
 }
 
 /*
- * CommStringToDbTaskQoSStruct: Parses a string to a struct of type DB_TASK_QOS
- */
+CommStringToDbTaskQoSStruct Parses a string to a struct of type DB_TASK_QOS
+*/
 func CommStringToDbTaskQoSStruct(ct string) (*structs.DB_TASK_QOS, error) {
-	log.Println("Rotterdam > CAAS > common [CommStringToDbTaskQoSStruct] string tp json object / struct [DB_TASK_QOS]  ...")
-
 	data := &structs.DB_TASK_QOS{}
 	err := json.Unmarshal([]byte(ct), data)
 	if err != nil {
@@ -180,11 +187,9 @@ func CommStringToDbTaskQoSStruct(ct string) (*structs.DB_TASK_QOS, error) {
 }
 
 /*
- * CommStringToDbTaskStruct: Parses a string to a struct of type K8S_SCALE
- */
+CommStringToK8S_SCALE Parses a string to a struct of type K8S_SCALE
+*/
 func CommStringToK8S_SCALE(ct string) (*structs.K8S_SCALE, error) {
-	log.Println("Rotterdam > CAAS > common [CommStringToK8S_SCALE] string tp json object / struct [K8S_SCALE]  ...")
-
 	data := &structs.K8S_SCALE{}
 	err := json.Unmarshal([]byte(ct), data)
 	if err != nil {
@@ -193,4 +198,45 @@ func CommStringToK8S_SCALE(ct string) (*structs.K8S_SCALE, error) {
 	}
 
 	return data, nil
+}
+
+/*
+GetClusterIndex Returns the index of a cluster identified by its name / id value
+*/
+func GetClusterIndex(idCluster string) int {
+	for index := range cfg.Config.Clusters {
+		if idCluster == cfg.Config.Clusters[index].ID {
+			log.Println("Rotterdam > CAAS > common [GetClusterIndex] Returning index (" + strconv.Itoa(index) + ") of cluster [" + idCluster + "] ...")
+			return index
+		}
+	}
+
+	log.Println("Rotterdam > CAAS > common [GetClusterIndex] WARNING Returning default cluster index (0) ...")
+	return 0
+}
+
+/*
+GetClusterType Returns the type of a cluster identified by its name / id value
+*/
+func GetClusterType(idCluster string) string {
+	resp, err := imec_db.GetInfrByID(idCluster)
+	if err == nil && len(resp) > 0 {
+		return resp[0].Type
+	}
+
+	log.Println("Rotterdam > CAAS > common [GetClusterType] WARNING Returning default cluster type ...")
+	return "Openshift"
+}
+
+/*
+GetClusterDefaultDock Returns the type of a cluster identified by its name / id value
+*/
+func GetClusterDefaultDock(idCluster string) string {
+	resp, err := imec_db.GetInfrByID(idCluster)
+	if err == nil && len(resp) > 0 {
+		return resp[0].DefaultDock
+	}
+
+	log.Println("Rotterdam > CAAS > common [GetClusterDefaultDock] WARNING Returning default cluster dock ...")
+	return constants.DefaultDock
 }

@@ -30,7 +30,9 @@ import (
 ///////////////////////////////////////////////////////////////////////////////
 // DEFAULT AND TEST FUNCTIONS
 
-// Default Function for not implemented calls
+/*
+NotImplementedFunc Default Function for not implemented calls
+*/
 func NotImplementedFunc(w http.ResponseWriter, r *http.Request) {
 	log.Println("Rotterdam > CAAS > adapter [NotImplementedFunc] -Not implemented-")
 
@@ -52,24 +54,30 @@ func HomePath(w http.ResponseWriter, r *http.Request) {
 		CaaSVersion: cfg.Config.CaaSVersion})
 }
 
-// Test GET
+/*
+TestGetRequest Test GET function
+*/
 func TestGetRequest(w http.ResponseWriter, r *http.Request) {
 	log.Println("Rotterdam > CAAS > adapter [TestGetRequest] Testing GET request")
 
-	resp, err := common.HttpGETtest1("http://postman-echo.com/get?foo1=bar1&foo2=bar2")
-	if err == nil {
-		json.NewEncoder(w).Encode(structs.ResponseCaaS{
-			Resp:        "ok",
-			Method:      "TestGetRequest",
-			Message:     "Test",
-			CaaSVersion: cfg.Config.CaaSVersion,
-			Content:     resp})
-	} else {
+	_, objmap, err := common.HTTPGETStruct("http://postman-echo.com/get?foo1=bar1&foo2=bar2", true)
+	if err != nil {
+		log.Println("Rotterdam > CAAS > adapter [TestGetRequest] ERROR", err)
 		json.NewEncoder(w).Encode(structs.ResponseCaaS{
 			Resp:        "error",
 			Method:      "TestGetRequest",
 			Message:     err.Error(),
 			CaaSVersion: cfg.Config.CaaSVersion})
+	} else {
+		log.Println("Rotterdam > CAAS > adapter [TestGetRequest] url: " + objmap["url"].(string))
+		log.Println("Rotterdam > CAAS > adapter [TestGetRequest] args/foo1: " + objmap["args"].(map[string]interface{})["foo1"].(string))
+
+		json.NewEncoder(w).Encode(structs.ResponseCaaS{
+			Resp:        "ok",
+			Method:      "TestGetRequest",
+			Message:     "Test",
+			CaaSVersion: cfg.Config.CaaSVersion,
+			Content:     objmap["url"].(string)})
 	}
 }
 
@@ -83,7 +91,9 @@ type test_struct struct {
 	Complexes []string `json:"complexes,omitempty"`
 }
 
-// Test POST
+/*
+TestPostRequest Test POST function
+*/
 func TestPostRequest(w http.ResponseWriter, r *http.Request) {
 	log.Println("Rotterdam > CAAS > adapter [TestPostRequest] Testing POST request")
 
@@ -109,14 +119,31 @@ func TestPostRequest(w http.ResponseWriter, r *http.Request) {
 		log.Println("Rotterdam > CAAS > adapter [TestPostRequest] ComplexID is nil ")
 	}
 
-	resp, err := common.HttpPOSTTest1("http://postman-echo.com/post") //"http://httpbin.org/post")
+	type Payload struct {
+		Type     string      `json:"type"`
+		Name     string      `json:"name"`
+		Data     string      `json:"data"`
+		Priority interface{} `json:"priority"`
+		Port     interface{} `json:"port"`
+		Weight   interface{} `json:"weight"`
+	}
+
+	data := Payload{
+		Type:     "tipo1",
+		Name:     "name1",
+		Data:     "datadata",
+		Priority: 1,
+		Port:     8080,
+		Weight:   300}
+
+	_, respBytes, err := common.HTTPPOST("http://postman-echo.com/post", true, data)
 	if err == nil {
 		json.NewEncoder(w).Encode(structs.ResponseCaaS{
 			Resp:        "ok",
 			Method:      "TestPostRequest",
 			Message:     "Test",
 			CaaSVersion: cfg.Config.CaaSVersion,
-			Content:     resp})
+			Content:     string(respBytes)})
 	} else {
 		json.NewEncoder(w).Encode(structs.ResponseCaaS{
 			Resp:        "error",

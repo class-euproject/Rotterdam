@@ -42,34 +42,35 @@ type DB_TASK_POD struct {
 }
 
 type DB_TASK struct {
-	DbId           string        `json:"dbid,omitempty"`
-	Id             string        `json:"id,omitempty"`
-	Name           string        `json:"name,omitempty"`
-	NameSpace      string        `json:"nameSpace,omitempty"`
-	Type           string        `json:"type,omitempty"` // compss, default
-	Url            string        `json:"url,omitempty"`
-	Status         string        `json:"status,omitempty"`
-	AgreementId    string        `json:"agreementId,omitempty"`
-	Replicas       int           `json:"replicas,omitempty"`
-	TaskDefinition CLASS_TASK    `json:"taskDefinition,omitempty"`
-	Deployment     string        `json:"deployment,omitempty"`
-	ClusterId      string        `json:"clusterid,omitempty"`
-	Pods           []DB_TASK_POD `json:"pods,omitempty"`
+	DbId                 string            `json:"dbid,omitempty"`
+	Id                   string            `json:"id,omitempty"`
+	Name                 string            `json:"name,omitempty"`
+	NameSpace            string            `json:"nameSpace,omitempty"`
+	Type                 string            `json:"type,omitempty"` // compss, default, function
+	Url                  string            `json:"url,omitempty"`
+	Status               string            `json:"status,omitempty"`
+	AgreementId          string            `json:"agreementId,omitempty"`
+	Replicas             int               `json:"replicas,omitempty"`
+	TaskDefinition       CLASS_TASK        `json:"taskDefinition,omitempty"`
+	COMPSsTaskDefinition CLASS_COMPSS_TASK `json:"compssTaskDefinition,omitempty"`
+	Deployment           string            `json:"deployment,omitempty"`
+	ClusterId            string            `json:"clusterid,omitempty"`
+	Pods                 []DB_TASK_POD     `json:"pods,omitempty"`
 }
 
 // DB_TASK_QOS
 type DB_TASK_QOS struct {
-	DbId            string `json:"dbid,omitempty"`
-	Id              string `json:"id,omitempty"`
-	Type            string `json:"type,omitempty"`
-	IdTask          string `json:"idtask,omitempty"`
-	Guarantee       string `json:"guarantee,omitempty"`
-	TotalViolations int    `json:"totalviolations,omitempty"`
-	MaxAllowed      int    `json:"maxallowed,omitempty"`
-	Action          string `json:"action,omitempty"`
-	ScaleFactor     int    `json:"scalefactor,omitempty"`
-	MaxReplicas     int    `json:"maxreplicas,omitempty"`
-	MinReplicas     int    `json:"minreplicas,omitempty"`
+	DbId            string  `json:"dbid,omitempty"`
+	Id              string  `json:"id,omitempty"`
+	Type            string  `json:"type,omitempty"`
+	IdTask          string  `json:"idtask,omitempty"`
+	Guarantee       string  `json:"guarantee,omitempty"`
+	TotalViolations int     `json:"totalviolations,omitempty"`
+	MaxAllowed      int     `json:"maxallowed,omitempty"`
+	Action          string  `json:"action,omitempty"`
+	ScaleFactor     float64 `json:"scalefactor,omitempty"`
+	MaxReplicas     int     `json:"maxreplicas,omitempty"`
+	MinReplicas     int     `json:"minreplicas,omitempty"`
 }
 
 var DB_TASK_PREFIX string = "task_"

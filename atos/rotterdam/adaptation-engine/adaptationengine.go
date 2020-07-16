@@ -22,19 +22,51 @@ import (
 	caas "atos/rotterdam/caas"
 	"atos/rotterdam/caas/common"
 	structs "atos/rotterdam/caas/common/structs"
+	cfg "atos/rotterdam/config"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
-
-	"github.com/nikunjy/rules/parser"
 )
 
-// Process
+// floatToString
+func floatToString(inputNum float64) string {
+	// to convert a float number to a string
+	return strconv.FormatFloat(inputNum, 'f', 6, 64)
+}
+
+// resetDeadLinesMissedMetric
+func resetDeadLinesMissedMetric(clusterIndex int, id string, job string) (string, error) {
+	// CALL to Prometheus Pushgateway API to delete a deployment
+	log.Println("Rotterdam > Adaptation-Engine > [resetDeadLinesMissedMetric] Deleting metric from Prometheus ...")
+	log.Println("Rotterdam > Adaptation-Engine > [resetDeadLinesMissedMetric] DELETE [" + cfg.Config.Clusters[clusterIndex].PrometheusPushgatewayEndPoint + "/metrics/job/deadlines_missed_" + id + "]")
+
+	// raw_data
+	rawData := `# TYPE deadlines_missed_` + id + ` counter
+	deadlines_missed_` + id + ` 0
+	`
+
+	// reset value
+	status, _, err := common.HTTPPOSTRawData(
+		cfg.Config.Clusters[clusterIndex].PrometheusPushgatewayEndPoint+"/metrics/job/"+job, true, rawData)
+	if err != nil {
+		log.Println("Rotterdam > Adaptation-Engine > [resetDeadLinesMissedMetric] ERROR", err)
+		return strconv.Itoa(status), err
+	}
+
+	log.Println("Rotterdam > Adaptation-Engine > [resetDeadLinesMissedMetric] RESPONSE: OK")
+	return strconv.Itoa(status), nil
+}
+
+/*
+Process handles violatiokns from SLALite
+*/
 func Process(w http.ResponseWriter, v structs.ViolationInfo) bool {
-	log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] Processing violation from SLA " + v.Agreement_id + " ...")
+	log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] Processing violation from SLA [" + v.Agreement_id + "] and Client ID [" + v.Client_id + "] ...")
 
 	// GET QoS
-	dbtaskqos, err := common.ReadTaskQoSValue(v.Client_id)
+	//dbtaskqos, err := common.ReadTaskQoSValue(v.Client_id)
+	dbtaskqos, err := common.ReadTaskQoSValue(v.Agreement_id)
 	if err == nil {
 		dbtaskqos.TotalViolations = dbtaskqos.TotalViolations + 1
 		err = common.SetTaskQoSValue(v.Client_id, *dbtaskqos)
@@ -45,15 +77,21 @@ func Process(w http.ResponseWriter, v structs.ViolationInfo) bool {
 		log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] Max Allowed: " + strconv.Itoa(dbtaskqos.MaxAllowed))
 		if dbtaskqos.TotalViolations > dbtaskqos.MaxAllowed {
 			log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] Taking action ...")
+			// if COMPSs metric ==> delete from Prometheus / Pushgateway
+			if dbtaskqos.Type == "app-compss" {
+				resetDeadLinesMissedMetric(0, dbtaskqos.IdTask, "compss")
+			}
+
 			// ADAPT
 			dbtask, err := common.ReadTaskValue(v.Client_id)
 			var totalNewReplicas int
 			if err == nil {
 				log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] dbtask.Replicas: " + strconv.Itoa(dbtask.Replicas))
-				log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] dbtaskqos.ScaleFactor: " + strconv.Itoa(dbtaskqos.ScaleFactor))
+				log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] dbtaskqos.ScaleFactor: " + floatToString(dbtaskqos.ScaleFactor))
 
-				if dbtaskqos.Action == "scale_down" {
-					totalNewReplicas = dbtask.Replicas - (dbtask.Replicas / dbtaskqos.ScaleFactor)
+				if dbtaskqos.Action == "scale_in" {
+					resScaling := math.Floor(float64(dbtask.Replicas) * dbtaskqos.ScaleFactor)
+					totalNewReplicas = int(resScaling) // dbtask.Replicas - (dbtask.Replicas / dbtaskqos.ScaleFactor)
 					log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] totalNewReplicas: " + strconv.Itoa(totalNewReplicas))
 					log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] dbtaskqos.MinReplicas: " + strconv.Itoa(dbtaskqos.MinReplicas))
 					if totalNewReplicas < dbtaskqos.MinReplicas {
@@ -62,7 +100,8 @@ func Process(w http.ResponseWriter, v structs.ViolationInfo) bool {
 
 					log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] ... decreasing number of replicas from " + strconv.Itoa(dbtask.Replicas) + " to " + strconv.Itoa(totalNewReplicas))
 				} else {
-					totalNewReplicas = dbtask.Replicas + (dbtask.Replicas * dbtaskqos.ScaleFactor)
+					resScaling := math.Ceil(float64(dbtask.Replicas) * dbtaskqos.ScaleFactor)
+					totalNewReplicas = int(resScaling) // dbtask.Replicas + (dbtask.Replicas * dbtaskqos.ScaleFactor)
 					log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] totalNewReplicas: " + strconv.Itoa(totalNewReplicas))
 					log.Println("Rotterdam > Adaptation-Engine > adaptation engine [Process] dbtaskqos.MaxReplicas: " + strconv.Itoa(dbtaskqos.MaxReplicas))
 					if totalNewReplicas > dbtaskqos.MaxReplicas {
@@ -91,8 +130,9 @@ func Process(w http.ResponseWriter, v structs.ViolationInfo) bool {
 	}
 
 	// EVALUATE
-	type obj map[string]interface{}
-	parser.Evaluate("x eq 1", obj{"x": 1})
+	// "github.com/nikunjy/rules/parser"
+	// type obj map[string]interface{}
+	// parser.Evaluate("x eq 1", obj{"x": 1})
 	/*parser.Evaluate("x == 1", obj{"x": 1})
 	parser.Evaluate("x lt 1", obj{"x": 1})
 	parser.Evaluate("x < 1", obj{"x": 1})

@@ -23,35 +23,49 @@ import (
 	structs "atos/rotterdam/caas/common/structs"
 )
 
-// Openshift Adapter
+/*
+Openshift Adapter
+*/
 type OpenshiftAdapter struct{}
 
-// DeployTask: Deploy a task (k8s: deployment & service & volumes ...)
-func (a OpenshiftAdapter) DeployTask(cluster int, namespace string, task structs.CLASS_TASK) (string, error) {
-	return impl.DeployTask(cluster, namespace, task)
+/*
+DeployTask Deploy a task (k8s: deployment & service & volumes ...)
+*/
+func (a OpenshiftAdapter) DeployTask(task structs.CLASS_TASK) (string, error) {
+	return impl.DeployTask(task)
 }
 
-// DeployTaskCompss: Deploy a COMPSs task (k8s: deployment & service & volumes ...)
-func (a OpenshiftAdapter) DeployTaskCompss(cluster int, namespace string, task structs.CLASS_TASK) (string, error) {
-	return impl.DeployTaskCompss(cluster, namespace, task)
+/*
+DeployTaskCompss Deploy a COMPSs task (k8s: deployment & service & volumes ...)
+*/
+func (a OpenshiftAdapter) DeployTaskCompss(task structs.CLASS_TASK) (string, error) {
+	return impl.DeployTaskCompss(task)
 }
 
-// GetTask: Gets a deployment
-func (a OpenshiftAdapter) GetTask(cluster int, namespace string, name string) (structs.DB_TASK, error) {
-	return impl.GetTask(cluster, namespace, name)
+/*
+GetTaskAllInfo Gets a task with all the deployment information
+*/
+func (a OpenshiftAdapter) GetTaskAllInfo(idTask string) (structs.DB_TASK, error) {
+	return impl.GetTaskAllInfo(idTask)
 }
 
-// GetConfig: k8s configuration
+/*
+GetConfig k8s configuration
+*/
 func (a OpenshiftAdapter) GetConfig() (string, error) {
 	return impl.GetConfig()
 }
 
-// ScaleUpDown: Scale up task
-func (a OpenshiftAdapter) ScaleUpDown(cluster int, task structs.DB_TASK, replicas int) (string, error) {
-	return impl.ScaleUpDown(cluster, task, replicas)
+/*
+ScaleUpDown Scale up task
+*/
+func (a OpenshiftAdapter) ScaleUpDown(task structs.DB_TASK, replicas int) (string, error) {
+	return impl.ScaleUpDown(task, replicas)
 }
 
-// RemoveTask: Deletes a task
-func (a OpenshiftAdapter) RemoveTask(cluster int, namespace string, name string) (string, error) {
-	return impl.RemoveTask(cluster, namespace, name)
+/*
+RemoveTask Deletes a task
+*/
+func (a OpenshiftAdapter) RemoveTask(dbtask structs.DB_TASK) (string, string, error) {
+	return impl.RemoveTask(dbtask)
 }

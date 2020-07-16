@@ -19,113 +19,50 @@
 package impl
 
 import (
+	urls "atos/rotterdam/caas/adapters"
+	adapt_common "atos/rotterdam/caas/adapters/common"
 	common "atos/rotterdam/caas/common"
 	structs "atos/rotterdam/caas/common/structs"
-	cfg "atos/rotterdam/config"
+	imec_db "atos/rotterdam/imec/db"
 	"errors"
 	"log"
 	"strconv"
 )
 
-// delK8sDeployment: k8s: deployment
-func delK8sDeployment(cluster_index int, namespace string, name string) (string, error) {
-	// CALL to Kubernetes API to delete a deployment
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sDeployment] Deleting deployment from K8s cluster ...")
-	// map[string]interface{}, error
-	status, _, err := common.HttpDELETE_GenericStruct(
-		cfg.Config.Clusters[cluster_index].KubernetesEndPoint + "/apis/apps/v1/namespaces/" + namespace + "/deployments/" + name)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sDeployment] ERROR", err)
-		return strconv.Itoa(status), err
-	}
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sDeployment] RESPONSE: OK")
-
-	return strconv.Itoa(status), nil
-}
-
-// delK8sService: k8s: service
-func delK8sService(cluster_index int, namespace string, name string) (string, error) {
-	// CALL to Kubernetes API to delete a service
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sService] Deleting service from K8s cluster ...")
-	// map[string]interface{}, error
-	status, _, err := common.HttpDELETE_GenericStruct(
-		cfg.Config.Clusters[cluster_index].KubernetesEndPoint + "/api/v1/namespaces/" + namespace + "/services/serv-" + name)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sService] ERROR", err)
-		return strconv.Itoa(status), err
-	}
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sService] RESPONSE: OK")
-
-	return strconv.Itoa(status), nil
-}
-
-// delK8sRoute: k8s: route
-func delK8sRoute(cluster_index int, namespace string, name string) (string, error) {
-	// CALL to Kubernetes API to delete a route
+// delK8sRoute deletes a route
+func delK8sRoute(namespace string, name string, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sRoute] Deleting route from K8s cluster ...")
-	// map[string]interface{}, error
-	status, _, err := common.HttpDELETE_GenericStruct(
-		cfg.Config.Clusters[cluster_index].OpenshiftEndPoint + "/apis/route.openshift.io/v1/namespaces/" + namespace + "/routes/route-" + name)
+
+	status, _, err := common.HTTPDELETEStruct(
+		urls.GetPathOpenshiftRoute(cluster, namespace, name),
+		true)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sRoute] ERROR", err)
 		return strconv.Itoa(status), err
 	}
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sRoute] RESPONSE: OK")
 
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [delK8sRoute] RESPONSE: OK")
 	return strconv.Itoa(status), nil
 }
 
-// RemoveTask: Deletes a task
-func RemoveTaskOLD(cluster_index int, namespace string, name string) (string, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] Deleting task [" + name + "] from [" + namespace + "] ...")
-
-	// 1. DEPLOYMENT /////
-	status, err := delK8sDeployment(cluster_index, namespace, name)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] ERROR (1)", err)
-		return "", err
-	} else if status == "200" {
-		// 2. ROUTE /////
-		status, err := delK8sRoute(cluster_index, namespace, name)
-		if err != nil {
-			log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] ERROR (2)", err)
-			return "", err
-		} else if status == "200" {
-			// 3. SERVICE /////
-			status, err := delK8sService(cluster_index, namespace, name)
-			if err != nil {
-				log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] ERROR (3)", err)
-				return "", err
-			} else if status == "200" {
-				log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] Task removed with success")
-				return "ok", nil
-			}
-		}
-	}
-
-	err = errors.New("Task termination failed. Internal status = [" + status + "]")
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] ERROR (4)", err)
-	return "", err
-}
-
-// removeDefaultTask: Deletes a task
-func removeDefaultTask(cluster_index int, namespace string, name string) (string, error) {
+// removeDefaultTask deletes a task
+func removeDefaultTask(namespace string, name string, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeDefaultTask] Deleting task [" + name + "] from [" + namespace + "] ...")
 
 	// 1. DEPLOYMENT /////
-	status, err := delK8sDeployment(cluster_index, namespace, name)
+	status, err := adapt_common.DelK8sDeployment(namespace, name, cluster, true)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeDefaultTask] ERROR (1)", err)
 		return "", err
 	} else if status == "200" {
 		// 2. ROUTE /////
-		status, err := delK8sRoute(cluster_index, namespace, name)
+		status, err := delK8sRoute(namespace, name, cluster)
 		if err != nil {
 			log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeDefaultTask] ERROR (2)", err)
 			return "", err
 		} else if status == "200" {
 			// 3. SERVICE /////
-			status, err := delK8sService(cluster_index, namespace, name)
+			status, err := adapt_common.DelK8sService(namespace, name, cluster, true)
 			if err != nil {
 				log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeDefaultTask] ERROR (3)", err)
 				return "", err
@@ -141,12 +78,12 @@ func removeDefaultTask(cluster_index int, namespace string, name string) (string
 	return "", err
 }
 
-// removeCOMPSsTask: Deletes a COMPSs task
-func removeCOMPSsTask(cluster_index int, namespace string, name string, dbtask structs.DB_TASK) (string, error) {
+// removeCOMPSsTask deletes a COMPSs task
+func removeCOMPSsTask(namespace string, name string, dbtask structs.DB_TASK, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeCOMPSsTask] Deleting COMPSs task [" + name + "] from [" + namespace + "] ...")
 
 	// 1. DEPLOYMENT /////
-	status, err := delK8sDeployment(cluster_index, namespace, name)
+	status, err := adapt_common.DelK8sDeployment(namespace, name, cluster, true)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeCOMPSsTask] ERROR (1)", err)
 		return "", err
@@ -154,7 +91,7 @@ func removeCOMPSsTask(cluster_index int, namespace string, name string, dbtask s
 		// 2. SERVICES /////
 		for _, pod := range dbtask.Pods {
 			// DB_TASK_POD
-			status, err := delK8sService(cluster_index, namespace, pod.Name)
+			status, err := adapt_common.DelK8sService(namespace, pod.Name, cluster, true)
 			if err != nil {
 				log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [removeCOMPSsTask] ERROR (2)", err)
 				//return "", err
@@ -171,22 +108,25 @@ func removeCOMPSsTask(cluster_index int, namespace string, name string, dbtask s
 	return "", err
 }
 
-// RemoveTask: Deletes a task
-func RemoveTask(cluster_index int, namespace string, name string) (string, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] Deleting task [" + name + "] from [" + namespace + "] ...")
+/*
+RemoveTask deletes a task
+*/
+func RemoveTask(dbTask structs.DB_TASK) (string, string, error) {
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] Deleting task [" + dbTask.Id + "] ...")
 
-	// get type of task
-	dbTask, err := common.ReadTaskValue(name) // (*structs.DB_TASK, error)
-	if err == nil {
-		// remove task
-		if dbTask.Type == structs.DB_TASK_TYPE_DEFAULT {
-			removeDefaultTask(cluster_index, namespace, name)
-		} else if dbTask.Type == structs.DB_TASK_TYPE_COMPSS {
-			removeCOMPSsTask(cluster_index, namespace, name, *dbTask)
-		} else {
-			log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] WARNING type of task is not defined: " + dbTask.Type)
-		}
+	clusterInfr, _ := imec_db.GetCluster(dbTask.ClusterId)
+	task := dbTask.TaskDefinition
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] cluster id = " + dbTask.ClusterId + ", dock = " + task.Dock + "")
+
+	// remove task
+	if dbTask.Type == structs.DB_TASK_TYPE_DEFAULT {
+		res, err := removeDefaultTask(task.Dock, dbTask.Id, clusterInfr)
+		return res, dbTask.AgreementId, err
+	} else if dbTask.Type == structs.DB_TASK_TYPE_COMPSS {
+		res, err := removeCOMPSsTask(task.Dock, dbTask.Id, dbTask, clusterInfr)
+		return res, dbTask.AgreementId, err
 	}
 
-	return "", err
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Termination [RemoveTask] WARNING type of task is not defined: " + dbTask.Type)
+	return "", "", nil
 }

@@ -19,6 +19,7 @@ WORKDIR /opt/rotterdam
 COPY --from=builder /go/src/atos/rotterdam/Rotterdam .
 COPY run_rotterdam.sh run_rotterdam.sh
 COPY ./config/config.json ./config/config.json
+COPY ./config/qos_templates.json ./config/qos_templates.json
 COPY ./rest-api ./rest-api
 
 RUN chmod 775 /opt/rotterdam/run_rotterdam.sh

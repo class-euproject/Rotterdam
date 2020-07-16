@@ -23,34 +23,85 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
 
-// Configuration
+/*
+Configuration ...
+*/
 type Configuration struct {
 	Adapter        string
 	KubeConfigPath string
 }
 
+/*
+Config ...
+*/
 var Config Configuration
 
-// CaaS Response
+/*
+ResponseCaaS CaaS Response
+*/
 type ResponseCaaS struct {
 	Resp    string `json:"resp,omitempty"`
 	Message string `json:"message,omitempty"`
 }
 
-// Default Function for not implemented calls
+/*
+Processes slice
+*/
+var Processes []string
+
+// init
+func init() {
+	log.Println("Rotterdam > Adaptation-Engine > engine [init] Initializing engine ...")
+	Processes = []string{}
+}
+
+/*
+NotImplementedFunc Default Function for not implemented calls
+*/
 func NotImplementedFunc(w http.ResponseWriter, r *http.Request) {
 	log.Println("Rotterdam > Adaptation-Engine > engine [NotImplementedFunc] not implemented")
 	json.NewEncoder(w).Encode(ResponseCaaS{Resp: "ok", Message: "not implemented"})
 }
 
-// Process Violations (from SLALite)
-func ProcessViolation(w http.ResponseWriter, r *http.Request) {
-	log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] Reading params ...")
+/*
+Check if item is already in slice
+*/
+func contains(slice []string, item string) bool {
+	set := make(map[string]struct{}, len(slice))
+	for _, s := range slice {
+		set[s] = struct{}{}
+	}
 
+	_, ok := set[item]
+	return ok
+}
+
+/*
+Remove item from slice
+*/
+func remove(slice []string, item string) []string {
+	for i, v := range slice {
+		if v == item {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}
+
+/*
+ProcessViolation Process Violations (from SLALite)
+*/
+func ProcessViolation(w http.ResponseWriter, r *http.Request) {
+	log.Println("####################################################################################")
+	log.Println("## POST /api/v1/sla/tasks/{id}/guarantee/{guarantee}")
+
+	log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] Reading params ...")
 	params := mux.Vars(r)
 	log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] guarantee..." + params["guarantee"])
 	log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] name..." + params["name"]) // task name
@@ -63,7 +114,15 @@ func ProcessViolation(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] ERROR processing violation from SLA: ", err)
 		} else {
-			Process(w, u)
+			log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] Processes slice: " + strings.Join(Processes, ", "))
+			if !contains(Processes, params["guarantee"]) {
+				Processes = append(Processes, params["guarantee"])
+				Process(w, u)
+			} else {
+				time.Sleep(5 * time.Second)
+				Processes = remove(Processes, params["guarantee"])
+			}
+			log.Println("Rotterdam > Adaptation-Engine > engine [ProcessViolation] Processes slice: " + strings.Join(Processes, ", "))
 		}
 	}
 }

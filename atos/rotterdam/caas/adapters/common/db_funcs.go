@@ -24,7 +24,9 @@ import (
 	"log"
 )
 
-// GetAllTasks: Get all tasks
+/*
+GetAllTasks Get all tasks
+*/
 func GetAllTasks() ([]structs.DB_TASK, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Common [GetAllTasks] Getting tasks ...")
 
@@ -38,7 +40,9 @@ func GetAllTasks() ([]structs.DB_TASK, error) {
 	return dbtasks, err
 }
 
-// GetDockTasks: get all tasks from dock
+/*
+GetDockTasks get all tasks from dock
+*/
 func GetDockTasks(dock string) ([]structs.DB_TASK, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Common [GetDockTasks] Getting tasks from dock [" + dock + "] ...")
 
@@ -52,7 +56,9 @@ func GetDockTasks(dock string) ([]structs.DB_TASK, error) {
 	return dbtasks, err
 }
 
-// GetAllTasksQoS: Get all tasks qos
+/*
+GetAllTasksQoS Get all tasks qos
+*/
 func GetAllTasksQoS() ([]structs.DB_TASK_QOS, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Common [GetAllTasksQoS] Getting tasks QoS ...")
 
@@ -64,4 +70,20 @@ func GetAllTasksQoS() ([]structs.DB_TASK_QOS, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Common [GetAllTasksQoS] ERROR ", err)
 	dbtasks = make([]structs.DB_TASK_QOS, 0)
 	return dbtasks, err
+}
+
+/*
+GetTask Returns a task
+*/
+func GetTask(idTask string) (structs.DB_TASK, error) {
+	log.Println("Rotterdam > CAAS > Adapters > Common [GetTask] Getting Task with id=" + idTask + " ...")
+
+	// get task
+	dbTask, err := common.ReadTaskValue(idTask)
+	if err == nil {
+		return *dbTask, nil
+	}
+
+	log.Println("Rotterdam > CAAS > Adapters > Common [GetTask] ERROR", err)
+	return *dbTask, err
 }

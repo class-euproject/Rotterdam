@@ -27,28 +27,45 @@ import (
 ///////////////////////////////////////////////////////////////////////////////
 // configuration struct: is filled with values from json file and environement values
 type ConfigurationCluster struct {
-	Id                  string
-	Name                string
-	Description         string
-	Mode                string
-	ServerIP            string
-	OpenshiftOauthToken string
-	KubernetesEndPoint  string
-	OpenshiftEndPoint   string
-	SLALiteEndPoint     string
+	ID                            string
+	Name                          string
+	Description                   string
+	Type                          string
+	SO                            string
+	DefaultDock                   string
+	OpenshiftOauthToken           string
+	KubernetesEndPoint            string
+	OpenshiftEndPoint             string
+	SLALiteEndPoint               string
+	PrometheusPushgatewayEndPoint string
+	HostIP                        string
+	HostPort                      int
+	User                          string
+	Password                      string
+	KeyFile                       string
 }
 
 type Configuration struct {
 	RestApiVersion     string
 	CaaSVersion        string
+	FaaSVersion        string
 	RulesEngineVersion string
+	IMECVersion        string
 	SLALiteVersion     string
 	ServerPort         int
 	Clusters           []ConfigurationCluster
 	SLAs               struct {
-		CreationDate        string
-		ExpirationDate      string
-		SupportedQoSMetrics []string
+		CreationDate   string
+		ExpirationDate string
+	}
+	Tasks struct {
+		MaxReplicas int
+		MinReplicas int
+		MaxAllowed  int
+		ScaleFactor float64
+		Value       int
+		Comparator  string
+		Action      string
 	}
 }
 
@@ -68,14 +85,16 @@ type CLASS_QOS_TEMPLATE__ELEM struct {
 	GuaranteeName string                               `json:"guaranteeName,omitempty"`
 	MaxAllowed    int                                  `json:"maxAllowed,omitempty"`
 	Action        string                               `json:"action,omitempty"`
-	ScaleFactor   int                                  `json:"scaleFactor,omitempty"`
+	ScaleFactor   float64                              `json:"scaleFactor,omitempty"`
 	Guarantees    []CLASS_QOS_TEMPLATE__ELEM_GUARANTEE `json:"guarantees,omitempty"`
+	MaxReplicas   int                                  `json:"maxReplicas,omitempty"`
+	MinReplicas   int                                  `json:"minReplicas,omitempty"`
 }
 
 type CLASS_QOS_TEMPLATE_LIST []CLASS_QOS_TEMPLATE__ELEM
 
 // global qos_templates
-var QosTemplates CLASS_QOS_TEMPLATE_LIST 
+var QosTemplates CLASS_QOS_TEMPLATE_LIST
 
 //
 func setEnvValue(val *string, name string) {
@@ -97,10 +116,10 @@ func setEnvValueInt(val *int, name string) {
 func InitConfig(cfg *Configuration) {
 	log.Println("Rotterdam > CAAS > Config > Checking configuration values from ENV ...")
 
-	setEnvValue(&cfg.Clusters[0].Mode, "Mode")
+	setEnvValue(&cfg.Clusters[0].Type, "Type")
 	setEnvValue(&cfg.Clusters[0].KubernetesEndPoint, "KubernetesEndPoint")
 	setEnvValue(&cfg.Clusters[0].OpenshiftEndPoint, "OpenshiftEndPoint")
-	setEnvValue(&cfg.Clusters[0].ServerIP, "ServerIP")
+	setEnvValue(&cfg.Clusters[0].HostIP, "HostIP")
 	setEnvValue(&cfg.Clusters[0].OpenshiftOauthToken, "OpenshiftOauthToken")
 	setEnvValue(&cfg.Clusters[0].SLALiteEndPoint, "SLALiteEndPoint")
 	setEnvValueInt(&cfg.ServerPort, "ServerPort")

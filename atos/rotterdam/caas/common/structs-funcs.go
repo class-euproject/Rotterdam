@@ -22,6 +22,7 @@ import (
 	structs "atos/rotterdam/caas/common/structs"
 	cfg "atos/rotterdam/config"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -32,12 +33,12 @@ import (
 // CLASS TASK (JSON) DEFINITION
 
 /*
- * StructCheckClassTask: Checks if CLASS struct is valid (from json)
- */
-func StructCheckClassTask(req *http.Request) (*structs.CLASS_TASK, error) {
+StructCheckClassTask Checks if CLASS struct is valid (from json)
+*/
+func StructCheckClassTask(decoder *json.Decoder) (*structs.CLASS_TASK, error) {
 	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassTask] Checking json object ...")
 
-	decoder := json.NewDecoder(req.Body)
+	//decoder := json.NewDecoder(req.Body)
 	var t structs.CLASS_TASK
 	err := decoder.Decode(&t)
 	if err != nil {
@@ -45,9 +46,35 @@ func StructCheckClassTask(req *http.Request) (*structs.CLASS_TASK, error) {
 		return nil, err
 	}
 
-	t_str, err := CommClassStructToString(t)
-	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassTask] Parsed object (string): " + t_str)
+	if len(t.Containers) == 0 {
+		log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassTask] ERROR (2) 'containers' is not defined")
+		return nil, errors.New("'containers' is not defined")
+	}
+
+	tStr, err := CommClassStructToString(t)
+	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassTask] Parsed object (string): " + tStr)
 	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassTask] Sending parsed object ...")
+
+	return &t, nil
+}
+
+/*
+StructCheckClassCOMPSsTask Checks if CLASS struct is valid (from json)
+*/
+func StructCheckClassCOMPSsTask(decoder *json.Decoder) (*structs.CLASS_COMPSS_TASK, error) {
+	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassCOMPSsTask] Checking json object ...")
+
+	//decoder := json.NewDecoder(req.Body)
+	var t structs.CLASS_COMPSS_TASK
+	err := decoder.Decode(&t)
+	if err != nil {
+		log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassCOMPSsTask] ERROR (1)", err)
+		return nil, err
+	}
+
+	tStr, err := CommClassCOMPSsStructToString(t)
+	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassCOMPSsTask] Parsed object (string): " + tStr)
+	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClassCOMPSsTask] Sending parsed object ...")
 
 	return &t, nil
 }
@@ -56,15 +83,15 @@ func StructCheckClassTask(req *http.Request) (*structs.CLASS_TASK, error) {
 // K8S_DEPLOYMENT
 
 /*
- * StructNewDeploymentTemplate: creates a new K8s Deployment json
- */
+StructNewDeploymentTemplate creates a new K8s Deployment json
+*/
 func StructNewDeploymentTemplate(task structs.CLASS_TASK, replicas int) *structs.K8S_DEPLOYMENT {
 	var jsonDeployment *structs.K8S_DEPLOYMENT
 	jsonDeployment = new(structs.K8S_DEPLOYMENT)
 
 	jsonDeployment.ApiVersion = "apps/v1"
 	jsonDeployment.Kind = "Deployment"
-	jsonDeployment.Metadata.Name = task.Name
+	jsonDeployment.Metadata.Name = task.ID
 
 	if task.Replicas > 1 {
 		jsonDeployment.Spec.Replicas = task.Replicas
@@ -73,33 +100,42 @@ func StructNewDeploymentTemplate(task structs.CLASS_TASK, replicas int) *structs
 	}
 
 	jsonDeployment.Spec.RevisionHistoryLimit = 10
-	jsonDeployment.Spec.Selector.MatchLabels.App = task.Name
-	jsonDeployment.Spec.Template.Metadata.Labels.App = task.Name
+	jsonDeployment.Spec.Selector.MatchLabels.App = task.ID
+	jsonDeployment.Spec.Template.Metadata.Labels.App = task.ID
 
 	// containers
-	total_containers := len(task.Containers)
-	jsonDeployment.Spec.Template.Spec.Containers = make([]structs.K8S_DEPLOYMENT_CONTAINER, total_containers)
-	for i := 0; i < total_containers; i++ {
+	totalContainers := len(task.Containers)
+	jsonDeployment.Spec.Template.Spec.Containers = make([]structs.K8S_DEPLOYMENT_CONTAINER, totalContainers)
+	for i := 0; i < totalContainers; i++ {
 		jsonDeployment.Spec.Template.Spec.Containers[i].Image = task.Containers[i].Image
 		jsonDeployment.Spec.Template.Spec.Containers[i].ImagePullPolicy = "Always"
 		jsonDeployment.Spec.Template.Spec.Containers[i].Name = task.Containers[i].Name
 
 		// ports
-		total_ports := len(task.Containers[i].Ports)
-		jsonDeployment.Spec.Template.Spec.Containers[i].Ports = make([]structs.K8S_DEPLOYMENT_CONTAINER_PORTS, total_ports)
-		for j := 0; j < total_ports; j++ {
+		totalPorts := len(task.Containers[i].Ports)
+		jsonDeployment.Spec.Template.Spec.Containers[i].Ports = make([]structs.K8S_DEPLOYMENT_CONTAINER_PORTS, totalPorts)
+		for j := 0; j < totalPorts; j++ {
 			jsonDeployment.Spec.Template.Spec.Containers[i].Ports[j].ContainerPort = task.Containers[i].Ports[j].ContainerPort
 		}
 
 		// env
-		total_envs := len(task.Containers[i].Environment)
-		jsonDeployment.Spec.Template.Spec.Containers[i].Env = make([]structs.K8S_DEPLOYMENT_CONTAINER_ENV, total_envs)
-		for j := 0; j < total_envs; j++ {
-			jsonDeployment.Spec.Template.Spec.Containers[i].Env[j].Name = task.Containers[i].Environment[j].Name
-			jsonDeployment.Spec.Template.Spec.Containers[i].Env[j].Value = task.Containers[i].Environment[j].Value
+		totalEnvs := len(task.Containers[i].Environment)
+		if totalEnvs > 0 {
+			jsonDeployment.Spec.Template.Spec.Containers[i].Env = make([]structs.K8S_DEPLOYMENT_CONTAINER_ENV, totalEnvs)
+			for j := 0; j < totalEnvs; j++ {
+				jsonDeployment.Spec.Template.Spec.Containers[i].Env[j].Name = task.Containers[i].Environment[j].Name
+				jsonDeployment.Spec.Template.Spec.Containers[i].Env[j].Value = task.Containers[i].Environment[j].Value
+			}
 		}
 
-		// volumes
+		// command & args
+		if len(task.Containers[i].Command) >= 1 {
+			jsonDeployment.Spec.Template.Spec.Containers[i].Command = task.Containers[i].Command
+		}
+
+		if len(task.Containers[i].Args) >= 1 {
+			jsonDeployment.Spec.Template.Spec.Containers[i].Args = task.Containers[i].Args
+		}
 	}
 
 	return jsonDeployment
@@ -109,20 +145,32 @@ func StructNewDeploymentTemplate(task structs.CLASS_TASK, replicas int) *structs
 // K8S_SERVICE
 
 /*
- * StructNewServiceTempalte: creates a new K8s Service json
- */
-func StructNewServiceTempalte(task structs.CLASS_TASK) (*structs.K8S_SERVICE, int, string) {
+StructNewK8sServiceTemplate creates a new K8s Service json
+*/
+func StructNewK8sServiceTemplate(task structs.CLASS_TASK, ip string) (*structs.K8S_SERVICE, int, string) {
+	jsonService, mainPort, mainPortName := StructNewServiceTemplate(task)
+
+	var ips = []string{ip}
+	jsonService.Spec.ExternalIPs = ips
+
+	return jsonService, mainPort, mainPortName
+}
+
+/*
+StructNewServiceTemplate creates a new K8s Service json
+*/
+func StructNewServiceTemplate(task structs.CLASS_TASK) (*structs.K8S_SERVICE, int, string) {
 	var jsonService *structs.K8S_SERVICE
 	jsonService = new(structs.K8S_SERVICE)
 
 	jsonService.ApiVersion = "v1"
 	jsonService.Kind = "Service"
-	jsonService.Metadata.Name = "serv-" + task.Name
-	jsonService.Metadata.Labels.App = task.Name
-	jsonService.Spec.Selector.App = task.Name
+	jsonService.Metadata.Name = "serv-" + task.ID
+	jsonService.Metadata.Labels.App = task.ID
+	jsonService.Spec.Selector.App = task.ID
 
-	main_port := 0
-	main_port_name := ""
+	mainPort := 0
+	mainPortName := ""
 	// ports
 	for _, contElement := range task.Containers {
 		for _, portElement := range contElement.Ports {
@@ -132,20 +180,20 @@ func StructNewServiceTempalte(task structs.CLASS_TASK) (*structs.K8S_SERVICE, in
 					Port:       portElement.HostPort,
 					Protocol:   strings.ToUpper(portElement.Protocol),
 					TargetPort: portElement.ContainerPort})
-			if main_port == 0 {
-				main_port = portElement.ContainerPort
-				main_port_name = strconv.Itoa(portElement.ContainerPort) + "-" + portElement.Protocol
+			if mainPort == 0 {
+				mainPort = portElement.ContainerPort
+				mainPortName = strconv.Itoa(portElement.ContainerPort) + "-" + portElement.Protocol
 			}
 		}
 	}
 
-	return jsonService, main_port, main_port_name
+	return jsonService, mainPort, mainPortName
 }
 
 /*
- * StructNewPodServiceTemplate: creates a new K8s Service for pods json
- */
-func StructNewPodServiceTemplate(cluster_index int, pod structs.DB_TASK_POD) *structs.K8S_SERVICE {
+StructNewPodServiceTemplate creates a new K8s Service for pods json
+*/
+func StructNewPodServiceTemplate(hostIP string, pod structs.DB_TASK_POD) *structs.K8S_SERVICE {
 	var jsonService *structs.K8S_SERVICE
 	jsonService = new(structs.K8S_SERVICE)
 
@@ -153,7 +201,7 @@ func StructNewPodServiceTemplate(cluster_index int, pod structs.DB_TASK_POD) *st
 	jsonService.Kind = "Service"
 	jsonService.Metadata.Name = "serv-" + pod.Name
 	jsonService.Spec.Selector.PodName = pod.Name
-	jsonService.Spec.ExternalIPs = append(jsonService.Spec.ExternalIPs, cfg.Config.Clusters[cluster_index].ServerIP)
+	jsonService.Spec.ExternalIPs = append(jsonService.Spec.ExternalIPs, hostIP)
 
 	jsonService.Spec.Ports =
 		append(jsonService.Spec.Ports, structs.K8S_SERVICE_PORT{
@@ -169,22 +217,22 @@ func StructNewPodServiceTemplate(cluster_index int, pod structs.DB_TASK_POD) *st
 // K8S_ROUTE
 
 /*
- * StructNewRouteTemplate: creates a new K8s Route json
- */
-func StructNewRouteTemplate(app_name string, main_port int, main_port_name string, server_ip string) *structs.K8S_ROUTE {
+StructNewRouteTemplate creates a new K8s Route json
+*/
+func StructNewRouteTemplate(appID string, mainPort int, mainPortName string, serverIP string) *structs.K8S_ROUTE {
 	var jsonRoute *structs.K8S_ROUTE
 	jsonRoute = new(structs.K8S_ROUTE)
 
 	jsonRoute.ApiVersion = "route.openshift.io/v1"
 	jsonRoute.Kind = "Route"
-	jsonRoute.Metadata.Name = "route-" + app_name
+	jsonRoute.Metadata.Name = "route-" + appID
 	jsonRoute.Metadata.Namespace = "class"
 
-	jsonRoute.Spec.Host = app_name + "." + server_ip + ".xip.io"
-	jsonRoute.Spec.Port.TargetPort = strings.ToLower(main_port_name) //strconv.Itoa(main_port)
+	jsonRoute.Spec.Host = appID + "." + serverIP + ".xip.io"
+	jsonRoute.Spec.Port.TargetPort = strings.ToLower(mainPortName) //strconv.Itoa(mainPort)
 
 	jsonRoute.Spec.To.Kind = "Service"
-	jsonRoute.Spec.To.Name = "serv-" + app_name
+	jsonRoute.Spec.To.Name = "serv-" + appID
 
 	return jsonRoute
 }
@@ -193,8 +241,8 @@ func StructNewRouteTemplate(app_name string, main_port int, main_port_name strin
 // CLASS_QOS_TEMPLATE_LIST (JSON) DEFINITION
 
 /*
- * StructCheckClassTask: Checks if CLASS struct is valid (from json)
- */
+StructCheckClasQoSTemplateList Checks if CLASS struct is valid (from json)
+*/
 func StructCheckClasQoSTemplateList(req *http.Request) (*cfg.CLASS_QOS_TEMPLATE_LIST, error) {
 	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClasQoSTemplateList] Checking json object ...")
 
@@ -206,8 +254,8 @@ func StructCheckClasQoSTemplateList(req *http.Request) (*cfg.CLASS_QOS_TEMPLATE_
 		return nil, err
 	}
 
-	t_str, err := CommClassQoSTemplateListToString(t)
-	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClasQoSTemplateList] Parsed object (string): " + t_str)
+	tStr, err := CommClassQoSTemplateListToString(t)
+	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClasQoSTemplateList] Parsed object (string): " + tStr)
 	log.Println("Rotterdam > CAAS > structs-funcs [StructCheckClasQoSTemplateList] Sending parsed object ...")
 
 	return &t, nil
@@ -217,9 +265,9 @@ func StructCheckClasQoSTemplateList(req *http.Request) (*cfg.CLASS_QOS_TEMPLATE_
 // POD_PATCH
 
 /*
- * StructNewPodPatch: creates a new K8s Patch json for pods
- */
-func StructNewPodPatch(pod_name string) []structs.K8S_POD_PATCH_LINE {
+StructNewPodPatch creates a new K8s Patch json for pods
+*/
+func StructNewPodPatch(podName string) []structs.K8S_POD_PATCH_LINE {
 	var lres []structs.K8S_POD_PATCH_LINE
 
 	var jsonPatch *structs.K8S_POD_PATCH_LINE
@@ -227,7 +275,7 @@ func StructNewPodPatch(pod_name string) []structs.K8S_POD_PATCH_LINE {
 
 	jsonPatch.Op = "add"
 	jsonPatch.Path = "/metadata/labels/pod-name"
-	jsonPatch.Value = pod_name
+	jsonPatch.Value = podName
 
 	lres = append(lres, *jsonPatch)
 

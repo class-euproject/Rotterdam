@@ -23,6 +23,8 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -30,23 +32,47 @@ import (
 )
 
 ///////////////////////////////////////////////////////////////////////////////
-// GET
 
-/*
- * HttpGET: generic GET request
- */
-func HttpGET(url string) (int, []byte, error) {
-	log.Println("Rotterdam > CAAS > http [HttpGET] GET request [" + url + "] ...")
-
-	// create request with headers
-	req, err := http.NewRequest("GET", url, nil)
+// creates the request's body' from a JSON
+func httpJSONBody(bodyJSON interface{}) io.Reader {
+	bodyBytes, err := json.Marshal(bodyJSON)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGET] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [httpJSONBody] ERROR (1)", err)
+		return nil
+	}
+	return bytes.NewReader(bodyBytes)
+}
+
+// creates the request's body' from a string
+func httpRawDataBody(bodyRawData string) io.Reader {
+	return bytes.NewReader([]byte(bodyRawData))
+}
+
+// httpRequest prepares and executes the HTTP request //// bodyJSON interface{}
+func httpRequest(httpMethod string, url string, auth bool, body io.Reader) (int, []byte, error) {
+	log.Println("Rotterdam > CAAS > http [httpRequest] " + httpMethod + " request [" + url + "], auth [" + strconv.FormatBool(auth) + "] ...")
+
+	// create request with headers and body
+	req, err := http.NewRequest(httpMethod, url, body)
+	if err != nil {
+		log.Println("Rotterdam > CAAS > http [httpRequest] ERROR (2)", err)
 		return 0, nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	// add authorization header to the req
-	req.Header.Set("Authorization", "Bearer "+cfg.Config.Clusters[0].OpenshiftOauthToken)
+
+	// Content-Type: json / json-patch+json
+	if httpMethod == "PATCH" {
+		log.Println("Rotterdam > CAAS > http [httpRequest] Content-Type = application/json-patch+json")
+		req.Header.Set("Content-Type", "application/json-patch+json")
+	} else {
+		log.Println("Rotterdam > CAAS > http [httpRequest] Content-Type = application/json")
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	// Authorization header
+	if auth == true {
+		log.Println("Rotterdam > CAAS > http [httpRequest] Using Authorization Bearer ...")
+		req.Header.Set("Authorization", "Bearer "+cfg.Config.Clusters[0].OpenshiftOauthToken)
+	}
 
 	// CLIENT
 	tr := &http.Transport{
@@ -54,10 +80,10 @@ func HttpGET(url string) (int, []byte, error) {
 	}
 	client := &http.Client{Transport: tr}
 
-	// execute GET request
-	resp, err := client.Do(req) // http.DefaultClient.Do(req)
+	// execute HTTP request
+	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGET] ERROR (2)", err)
+		log.Println("Rotterdam > CAAS > http [httpRequest] ERROR (3)", err)
 		return 0, nil, err
 	}
 	defer resp.Body.Close()
@@ -65,32 +91,45 @@ func HttpGET(url string) (int, []byte, error) {
 	// get data from response
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGET] ERROR (3)", err)
+		log.Println("Rotterdam > CAAS > http [httpRequest] ERROR (4)", err)
 		return resp.StatusCode, nil, err
+	} else if resp.StatusCode >= 400 { // check errors => StatusCode
+		log.Println("Rotterdam > CAAS > http [httpRequest] ERROR (5) StatusCode >= 400")
+		return resp.StatusCode, nil, errors.New("Rotterdam > CAAS > http [httpRequest] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode) + "")
 	}
 
-	log.Println("Rotterdam > CAAS > http [HttpGET] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode))
-	log.Println("Rotterdam > CAAS > http [HttpGET] RESPONSE: " + string(data))
+	log.Println("Rotterdam > CAAS > http [httpRequest] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode))
+	//log.Println("Rotterdam > CAAS > http [HTTPRequest] RESPONSE: " + string(data))
 
 	return resp.StatusCode, data, nil
 }
 
-/*
- * HttpGET_GenericStruct: GET request that returns a struct of type 'map[string]interface{}'
- */
-func HttpGET_GenericStruct(url string) (int, map[string]interface{}, error) {
-	log.Println("Rotterdam > CAAS > http [HttpGET_GenericStruct] GET request [" + url + "] ...")
+///////////////////////////////////////////////////////////////////////////////
+// GET
 
-	status, data, err := HttpGET(url)
+/*
+HTTPGET generic GET request
+*/
+func HTTPGET(url string, auth bool) (int, []byte, error) {
+	return httpRequest("GET", url, auth, nil)
+}
+
+/*
+HTTPGETStruct GET request that returns a struct of type 'map[string]interface{}'
+*/
+func HTTPGETStruct(url string, auth bool) (int, map[string]interface{}, error) {
+	log.Println("Rotterdam > CAAS > http [HTTPGETStruct] GET request [" + url + "] ...")
+
+	status, data, err := HTTPGET(url, auth)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGET_GenericStruct] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPGETStruct] ERROR (1)", err)
 		return status, nil, err
 	}
 
 	// create json
 	var objmap map[string]interface{}
 	if err := json.Unmarshal(data, &objmap); err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGET_GenericStruct] ERROR (2)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPGETStruct] ERROR (2)", err)
 		return status, nil, err
 	}
 
@@ -98,290 +137,89 @@ func HttpGET_GenericStruct(url string) (int, map[string]interface{}, error) {
 }
 
 /*
- * HttpGET_String: GET request that returns a string (response)
- */
-func HttpGET_String(url string) (int, string, error) {
-	log.Println("Rotterdam > CAAS > http [HttpGET_String] GET request [" + url + "] ...")
+HTTPGETString GET request that returns a string (response)
+*/
+func HTTPGETString(url string, auth bool) (int, string, error) {
+	log.Println("Rotterdam > CAAS > http [HTTPGETString] GET request [" + url + "] ...")
 
-	status, data, err := HttpGET(url)
+	status, data, err := HTTPGET(url, auth)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGET_String] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPGETString] ERROR (1)", err)
 		return status, "", err
 	}
 
 	return status, string(data), nil
 }
 
-/*
- * HttpGETtest1: Test method
- */
-func HttpGETtest1(url string) (string, error) {
-	log.Println("Rotterdam > CAAS > http [HttpGETtest1] GET request ...")
-
-	_, objmap, err := HttpGET_GenericStruct(url)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGETtest1] ERROR", err)
-		return "", err
-	}
-
-	log.Println("Rotterdam > CAAS > http [HttpGETtest1] url: " + objmap["url"].(string))
-	log.Println("Rotterdam > CAAS > http [HttpGETtest1] args/foo1: " + objmap["args"].(map[string]interface{})["foo1"].(string))
-
-	return objmap["url"].(string), nil
-}
-
-/*
- * HttpGETtest2: Test method
- */
-func HttpGETtest2(url string) (string, error) {
-	log.Println("Rotterdam > CAAS > http [HttpGETtest2] GET request ...")
-
-	_, data, err := HttpGET_String(url)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpGETtest2] ERROR", err)
-		return "", err
-	}
-
-	log.Println("Rotterdam > CAAS > http [HttpGETtest2] url: " + data)
-
-	return data, nil
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // POST
 
 /*
- * HttpPOST: Generic POST request
- */
-func HttpPOST(url string, body_json interface{}) (int, []byte, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPOST] POST request [" + url + "] ...")
-
-	// create request's body'
-	bodyBytes, err := json.Marshal(body_json)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOST] ERROR (1)", err)
-		return 0, nil, err
-	}
-	body := bytes.NewReader(bodyBytes)
-
-	// create request with headers and body
-	req, err := http.NewRequest("POST", url, body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOST] ERROR (2)", err)
-		return 0, nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// add authorization header to the req
-	req.Header.Set("Authorization", "Bearer "+cfg.Config.Clusters[0].OpenshiftOauthToken)
-
-	// CLIENT
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	// execute POST request
-	resp, err := client.Do(req) // http.DefaultClient.Do(req)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOST] ERROR (3)", err)
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-
-	// get data from response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOST] ERROR (4)", err)
-		return resp.StatusCode, nil, err
-	}
-
-	log.Println("Rotterdam > CAAS > http [HttpPOST] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode))
-	log.Println("Rotterdam > CAAS > http [HttpPOST] RESPONSE: " + string(data))
-
-	// return []byte
-	return resp.StatusCode, data, nil
+HTTPPOSTRawData Generic POST request
+*/
+func HTTPPOSTRawData(url string, auth bool, bodyRawData string) (int, []byte, error) {
+	return httpRequest("POST", url, auth, httpRawDataBody(bodyRawData))
 }
 
 /*
- * HttpPOST_GenericStruct: POST request that returns a struct of type 'map[string]interface{}'
- */
-func HttpPOST_GenericStruct(url string, body_json interface{}) (int, map[string]interface{}, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPOST_GenericStruct] POST request [" + url + "] ...")
+HTTPPOST Generic POST request
+*/
+func HTTPPOST(url string, auth bool, bodyJSON interface{}) (int, []byte, error) {
+	return httpRequest("POST", url, auth, httpJSONBody(bodyJSON))
+}
 
-	status, data, err := HttpPOST(url, body_json)
+/*
+HTTPPOSTStruct POST request that returns a struct of type 'map[string]interface{}'
+*/
+func HTTPPOSTStruct(url string, auth bool, bodyJSON interface{}) (int, map[string]interface{}, error) {
+	log.Println("Rotterdam > CAAS > http [HTTPPOSTStruct] POST request [" + url + "] ...")
+
+	status, data, err := HTTPPOST(url, auth, bodyJSON)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOST_GenericStruct] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPPOSTStruct] ERROR (1)", err)
 		return status, nil, err
 	}
 
 	// create json
 	var objmap map[string]interface{}
 	if err := json.Unmarshal(data, &objmap); err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOST_GenericStruct] ERROR (2)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPPOSTStruct] ERROR (2)", err)
 		return status, nil, err
 	}
 
 	return status, objmap, nil
 }
 
-/*
- * MOCKUP_HttpPOST_GenericStruct: POST request that returns a struct of type 'map[string]interface{}'
- */
-func MOCKUP_HttpPOST_GenericStruct(url string, body_json interface{}) (map[string]interface{}, error) {
-	log.Println("Rotterdam > CAAS > http [MOCKUP_HttpPOST_GenericStruct] POST request [" + url + "] ...")
-
-	res := map[string]interface{}{
-		"status": "200"}
-
-	return res, nil
-}
-
-/*
- *
- */
-func HttpPOSTTest1(url string) (string, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPOSTTest1] POST request ...")
-
-	type Payload struct {
-		Type     string      `json:"type"`
-		Name     string      `json:"name"`
-		Data     string      `json:"data"`
-		Priority interface{} `json:"priority"`
-		Port     interface{} `json:"port"`
-		Weight   interface{} `json:"weight"`
-	}
-
-	data := Payload{
-		Type:     "tipo1",
-		Name:     "name1",
-		Data:     "datadata",
-		Priority: 1,
-		Port:     8080,
-		Weight:   300}
-
-	_, resp_bytes, err := HttpPOST(url, data)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPOSTTest1] ERROR (1)", err)
-		return "", err
-	}
-
-	return string(resp_bytes), nil
-}
-
-/*
- *
- */
-func HttpPOSTTest2(url string) {
-
-	// Generated by curl-to-Go: https://mholt.github.io/curl-to-go
-
-	type Payload struct {
-		Type     string      `json:"type"`
-		Name     string      `json:"name"`
-		Data     string      `json:"data"`
-		Priority interface{} `json:"priority"`
-		Port     interface{} `json:"port"`
-		Weight   interface{} `json:"weight"`
-	}
-
-	data := Payload{
-		// fill struct
-	}
-	payloadBytes, err := json.Marshal(data)
-	if err != nil {
-		// handle err
-	}
-	body := bytes.NewReader(payloadBytes)
-
-	req, err := http.NewRequest("POST", "https://api.digitalocean.com/v2/domains/example.com/records", body)
-	if err != nil {
-		// handle err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer b7d03a6947b217efb6f3ec3bd3504582")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		// handle err
-	}
-	defer resp.Body.Close()
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // DELETE
 
 /*
- * HttpDELETE: Generic DELETE request
- */
-func HttpDELETE(url string, body_json interface{}) (int, []byte, error) {
-	log.Println("Rotterdam > CAAS > http [HttpDELETE] DELETE request [" + url + "] ...")
-
-	// create request's body'
-	bodyBytes, err := json.Marshal(body_json)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpDELETE] ERROR (1)", err)
-		return 0, nil, err
-	}
-	body := bytes.NewReader(bodyBytes)
-
-	// create request with headers and body
-	req, err := http.NewRequest("DELETE", url, body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpDELETE] ERROR (2)", err)
-		return 0, nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// add authorization header to the req
-	req.Header.Set("Authorization", "Bearer "+cfg.Config.Clusters[0].OpenshiftOauthToken)
-
-	// CLIENT
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	// execute DELETE request
-	resp, err := client.Do(req) // http.DefaultClient.Do(req)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpDELETE] ERROR (3)", err)
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-
-	// get data from response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpDELETE] ERROR (4)", err)
-		return resp.StatusCode, nil, err
-	}
-
-	log.Println("Rotterdam > CAAS > http [HttpDELETE] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode))
-	log.Println("Rotterdam > CAAS > http [HttpDELETE] RESPONSE: " + string(data))
-
-	// return []byte
-	return resp.StatusCode, data, nil
+HTTPDELETE Generic DELETE request
+*/
+func HTTPDELETE(url string, auth bool, bodyJSON interface{}) (int, []byte, error) {
+	return httpRequest("DELETE", url, auth, httpJSONBody(bodyJSON))
 }
 
 /*
- * HttpDELETE_GenericStruct: DELETE request that returns a struct of type 'map[string]interface{}'
- */
-func HttpDELETE_GenericStruct(url string) (int, map[string]interface{}, error) {
-	log.Println("Rotterdam > CAAS > http [HttpDELETE_GenericStruct] DELETE request [" + url + "] ...")
+HTTPDELETEStruct DELETE request that returns a struct of type 'map[string]interface{}'
+*/
+func HTTPDELETEStruct(url string, auth bool) (int, map[string]interface{}, error) {
+	log.Println("Rotterdam > CAAS > http [HTTPDELETEStruct] DELETE request [" + url + "] ...")
 
 	type Body struct {
 		Content interface{}
 	}
 
-	status, data, err := HttpDELETE(url, Body{})
+	status, data, err := HTTPDELETE(url, auth, Body{})
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpDELETE_GenericStruct] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPDELETEStruct] ERROR (1)", err)
 		return status, nil, err
 	}
 
 	// create json
 	var objmap map[string]interface{}
 	if err := json.Unmarshal(data, &objmap); err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpDELETE_GenericStruct] ERROR (2)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPDELETEStruct] WARNING (1)", err)
 		return status, nil, err
 	}
 
@@ -392,73 +230,28 @@ func HttpDELETE_GenericStruct(url string) (int, map[string]interface{}, error) {
 // PUT
 
 /*
- * HttpPUT: Generic PUT request
- */
-func HttpPUT(url string, body_json interface{}) (int, []byte, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPUT] PUT request [" + url + "] ...")
-
-	// create request's body'
-	bodyBytes, err := json.Marshal(body_json)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPUT] ERROR (1)", err)
-		return 0, nil, err
-	}
-	body := bytes.NewReader(bodyBytes)
-
-	// create request with headers and body
-	req, err := http.NewRequest("PUT", url, body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPUT] ERROR (2)", err)
-		return 0, nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// add authorization header to the req
-	req.Header.Set("Authorization", "Bearer "+cfg.Config.Clusters[0].OpenshiftOauthToken)
-
-	// CLIENT
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	// execute POST request
-	resp, err := client.Do(req) // http.DefaultClient.Do(req)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPUT] ERROR (3)", err)
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-
-	// get data from response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPUT] ERROR (4)", err)
-		return resp.StatusCode, nil, err
-	}
-
-	log.Println("Rotterdam > CAAS > http [HttpPUT] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode))
-	log.Println("Rotterdam > CAAS > http [HttpPUT] RESPONSE: " + string(data))
-
-	// return []byte
-	return resp.StatusCode, data, nil
+HTTPPUT Generic PUT request
+*/
+func HTTPPUT(url string, auth bool, bodyJSON interface{}) (int, []byte, error) {
+	return httpRequest("PUT", url, auth, httpJSONBody(bodyJSON))
 }
 
 /*
- * HttpPUT_GenericStruct: PUT request that returns a struct of type 'map[string]interface{}'
- */
-func HttpPUT_GenericStruct(url string, body_json interface{}) (int, map[string]interface{}, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPUT_GenericStruct] PUT request [" + url + "] ...")
+HTTPPUTStruct PUT request that returns a struct of type 'map[string]interface{}'
+*/
+func HTTPPUTStruct(url string, auth bool, bodyJSON interface{}) (int, map[string]interface{}, error) {
+	log.Println("Rotterdam > CAAS > http [HTTPPUTStruct] PUT request [" + url + "] ...")
 
-	status, data, err := HttpPUT(url, body_json)
+	status, data, err := HTTPPUT(url, auth, bodyJSON)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPUT_GenericStruct] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPPUTStruct] ERROR (1)", err)
 		return status, nil, err
 	}
 
 	// create json
 	var objmap map[string]interface{}
 	if err := json.Unmarshal(data, &objmap); err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPUT_GenericStruct] ERROR (2)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPPUTStruct] ERROR (2)", err)
 		return status, nil, err
 	}
 
@@ -469,74 +262,28 @@ func HttpPUT_GenericStruct(url string, body_json interface{}) (int, map[string]i
 // PATCH
 
 /*
- * HttpPATCH: Generic PATCH request
- */
-func HttpPATCH(url string, body_json interface{}) (int, []byte, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPATCH] PATCH request [" + url + "] ...")
-
-	// create request's body'
-	bodyBytes, err := json.Marshal(body_json)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPATCH] ERROR (1)", err)
-		return 0, nil, err
-	}
-	body := bytes.NewReader(bodyBytes)
-
-	// create request with headers and body
-	req, err := http.NewRequest("PATCH", url, body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPATCH] ERROR (2)", err)
-		return 0, nil, err
-	}
-	// -H "Content-Type:application/json-patch+json"
-	req.Header.Set("Content-Type", "application/json-patch+json") // old value: application/json
-	// add authorization header to the req
-	req.Header.Set("Authorization", "Bearer "+cfg.Config.Clusters[0].OpenshiftOauthToken)
-
-	// CLIENT
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	// execute POST request
-	resp, err := client.Do(req) // http.DefaultClient.Do(req)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPATCH] ERROR (3)", err)
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-
-	// get data from response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPATCH] ERROR (4)", err)
-		return resp.StatusCode, nil, err
-	}
-
-	log.Println("Rotterdam > CAAS > http [HttpPATCH] HTTP STATUS: (" + strconv.Itoa(resp.StatusCode) + ") " + http.StatusText(resp.StatusCode))
-	log.Println("Rotterdam > CAAS > http [HttpPATCH] RESPONSE: " + string(data))
-
-	// return []byte
-	return resp.StatusCode, data, nil
+HTTPPATCH Generic PATCH request
+*/
+func HTTPPATCH(url string, auth bool, bodyJSON interface{}) (int, []byte, error) {
+	return httpRequest("PATCH", url, auth, httpJSONBody(bodyJSON))
 }
 
 /*
- * HttpPATCH_GenericStruct: PATCH request that returns a struct of type 'map[string]interface{}'
- */
-func HttpPATCH_GenericStruct(url string, body_json interface{}) (int, map[string]interface{}, error) {
-	log.Println("Rotterdam > CAAS > http [HttpPATCH_GenericStruct] PATCH request [" + url + "] ...")
+HTTPPATCHStruct PATCH request that returns a struct of type 'map[string]interface{}'
+*/
+func HTTPPATCHStruct(url string, auth bool, bodyJSON interface{}) (int, map[string]interface{}, error) {
+	log.Println("Rotterdam > CAAS > http [HTTPPATCHStruct] PATCH request [" + url + "] ...")
 
-	status, data, err := HttpPATCH(url, body_json)
+	status, data, err := HTTPPATCH(url, auth, bodyJSON)
 	if err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPATCH_GenericStruct] ERROR (1)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPPATCHStruct] ERROR (1)", err)
 		return status, nil, err
 	}
 
 	// create json
 	var objmap map[string]interface{}
 	if err := json.Unmarshal(data, &objmap); err != nil {
-		log.Println("Rotterdam > CAAS > http [HttpPATCH_GenericStruct] ERROR (2)", err)
+		log.Println("Rotterdam > CAAS > http [HTTPPATCHStruct] ERROR (2)", err)
 		return status, nil, err
 	}
 

@@ -1,23 +1,36 @@
 {
-    "CaaSVersion": "1.3.16",
-    "RulesEngineVersion": "1.0.1",
-    "RestApiVersion": "1.3.0",
+    "CaaSVersion": "1.8.0",
+    "FaaSVersion": "1.0.0",
+    "RulesEngineVersion": "1.0.2",
+    "RestApiVersion": "1.8.0",
+    "IMECVersion": "0.0.3",
     "SLALiteVersion": "0.6.13",
     "ServerPort": 8333,
     "Clusters": [{
-        "Id": "maincluster",
+        "ID": "maincluster",
         "Name": "Default",
         "Description": "Main cluster",
-        "Mode": "Openshift",
+        "DefaultDock": "class",
+        "Type": "Openshift",
+        "SO": "centos",
         "KubernetesEndPoint": "http://192.168.7.28:8001",
         "OpenshiftEndPoint": "https://192.168.7.28:8443",
-        "ServerIP": "192.168.7.28",
-        "OpenshiftOauthToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRlZmF1bHQtdG9rZW4temc0OXAiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGVmYXVsdCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImU5N2U1ZDMxLWUwZTEtMTFlOC1hMzI5LTAwNTA1Njk4NjA1OSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmRlZmF1bHQifQ.uqhFktTqwBfzDec2P3W-g019MPA_DiISUOwlRsLnzIKjXnug7yAgNVYAlh-51DwCOTwbEFsxStEws1rYRjbzpfVrsns2a7LUg5bzYAh1lCgvgWwcJ4y3zENxmqPraVVaqHbb7VUA09IWM18UVddSKB_55P-XmNcBDylWkZayk6AK-0PZ6n2jhf1ZSvp0RetTRx1F37ff2gCswjQtnGxPB56ezO2FM6CSd0-KmthXa9i2ZpdEPkHWXRrIaof2t8895f6BWOn17QMOlOIwYBH2OTZ4L5CPyftiuExZEUBMCq2LPZFd-CpDZvrQG9eDD2l1EDp37bHwOrZ5VeNboaV7Iw",
-        "SLALiteEndPoint": "http://rotterdam-slalite.192.168.7.28.xip.io"
+        "HostIP": "192.168.7.28",
+        "OpenshiftOauthToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiO...n17QMOlOIwYBH2OTZ4L5CPyftiuExZEUBMCq2LPZFd-CpDZvrQG9eDD2l1EDp37bHwOrZ5VeNboaV7Iw",
+        "SLALiteEndPoint": "http://rotterdam-slalite.192.168.7.28.xip.io",
+        "PrometheusPushgatewayEndPoint": "http://pushgateway.192.168.7.28.xip.io"
     }],
     "SLAs": {
-        "SupportedQoSMetrics": ["kubelet_running_pod_count", "go_memstats_frees_total"],
         "CreationDate": "2019-01-01T00:00:00Z",
         "ExpirationDate": "2024-01-01T00:00:00Z"
+    },
+    "Tasks": {
+        "MaxReplicas": 30,
+        "MinReplicas": 1,
+        "MaxAllowed": 2,
+        "ScaleFactor": 1.25,
+        "Value": 2,
+        "Comparator": "<",
+        "Action": "scale_out"
     }
 }

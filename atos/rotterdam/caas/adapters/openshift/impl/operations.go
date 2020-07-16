@@ -25,52 +25,60 @@ import (
 	"log"
 )
 
-
-// getK8sDeployment: k8s: get deployment info
-func getK8sDeployment(cluster_index int, namespace string, name string) (string, error) {
+// getK8sDeployment gets the deployment info
+func getK8sDeployment(clusterIndex int, namespace string, name string) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [getK8sDeployment] Getting deployment from K8s cluster ...")
-	// map[string]interface{}, error
-	_, data, err := common.HttpGET_String(
-		cfg.Config.Clusters[cluster_index].KubernetesEndPoint + "/apis/apps/v1/namespaces/" + namespace + "/deployments/" + name)
+
+	// HttpGET_String returns (map[string]interface{}, error)
+	_, data, err := common.HTTPGETString(
+		cfg.Config.Clusters[clusterIndex].KubernetesEndPoint+"/apis/apps/v1/namespaces/"+namespace+"/deployments/"+name,
+		true)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [getK8sDeployment] ERROR", err)
 		return "", err
 	}
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [getK8sDeployment] RESPONSE: " + data)
 
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [getK8sDeployment] RESPONSE: " + data)
 	return data, nil
 }
 
-// GetTask: Gets a deployment
-func GetTask(cluster_index int, namespace string, name string) (structs.DB_TASK, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetTask] Getting deployment [" + name + "] from [" + namespace + "] ...")
+/*
+GetTaskAllInfo gets a deployment by id
+*/
+func GetTaskAllInfo(idTask string) (structs.DB_TASK, error) {
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetTaskAllInfo] Getting deployment with id=" + idTask + " ...")
 
 	// get task
-	dbTask, err := common.ReadTaskValue(name)
+	dbTask, err := common.ReadTaskValue(idTask)
 	if err == nil {
+		task := dbTask.TaskDefinition
+		clusterIndex := common.GetClusterIndex(task.Cluster)
+		namespace := task.Dock
+
 		// get deployment information
-		deployment_data, err := getK8sDeployment(cluster_index, namespace, name)
+		deploymentData, err := getK8sDeployment(clusterIndex, namespace, idTask)
 		if err == nil {
-			dbTask.Deployment = deployment_data
-			dbTask.Deployment = ""
+			dbTask.Deployment = deploymentData
 			return *dbTask, nil
 		}
 	}
 
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetTask] ERROR", err)
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetTaskAllInfo] ERROR", err)
 	return *dbTask, err
 }
 
-// GetConfig: k8s configuration
+/*
+GetConfig gets the Kubernetes service configuration
+*/
 func GetConfig() (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetConfig] Getting configuration from K8s cluster ...")
 
-	_, data, err := common.HttpGET_String(cfg.Config.Clusters[0].KubernetesEndPoint + "/api")
+	_, data, err := common.HTTPGETString(cfg.Config.Clusters[0].KubernetesEndPoint+"/api", true)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetConfig] ERROR", err)
 		return "", err
 	}
-	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetConfig] RESPONSE: " + data)
 
+	log.Println("Rotterdam > CAAS > Adapters > Openshift > Operations [GetConfig] RESPONSE: " + data)
 	return data, err
 }

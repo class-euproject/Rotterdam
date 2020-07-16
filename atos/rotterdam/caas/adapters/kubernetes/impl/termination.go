@@ -19,58 +19,25 @@
 package impl
 
 import (
-	common "atos/rotterdam/caas/common"
+	adapt_common "atos/rotterdam/caas/adapters/common"
 	structs "atos/rotterdam/caas/common/structs"
-	cfg "atos/rotterdam/config"
+	imec_db "atos/rotterdam/imec/db"
 	"errors"
 	"log"
-	"strconv"
 )
 
-// delK8sDeployment: k8s: deployment
-func delK8sDeployment(namespace string, name string) (string, error) {
-	// CALL to Kubernetes API to delete a deployment
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [delK8sDeployment] Deleting deployment from K8s cluster ...")
-	// map[string]interface{}, error
-	status, _, err := common.HttpDELETE_GenericStruct(
-		cfg.Config.Clusters[0].KubernetesEndPoint + "/apis/apps/v1/namespaces/" + namespace + "/deployments/" + name)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [delK8sDeployment] ERROR", err)
-		return strconv.Itoa(status), err
-	}
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [delK8sDeployment] RESPONSE: OK")
-
-	return strconv.Itoa(status), nil
-}
-
-// delK8sService: k8s: service
-func delK8sService(namespace string, name string) (string, error) {
-	// CALL to Kubernetes API to delete a service
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [delK8sService] Deleting service from K8s cluster ...")
-	// map[string]interface{}, error
-	status, _, err := common.HttpDELETE_GenericStruct(
-		cfg.Config.Clusters[0].KubernetesEndPoint + "/api/v1/namespaces/" + namespace + "/services/serv-" + name)
-	if err != nil {
-		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [delK8sService] ERROR", err)
-		return strconv.Itoa(status), err
-	}
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [delK8sService] RESPONSE: OK")
-
-	return strconv.Itoa(status), nil
-}
-
 // removeDefaultTask: Deletes a task
-func removeDefaultTask(namespace string, name string) (string, error) {
+func removeDefaultTask(namespace string, name string, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [removeDefaultTask] Deleting task [" + name + "] from [" + namespace + "] ...")
 
 	// 1. DEPLOYMENT /////
-	status, err := delK8sDeployment(namespace, name)
+	status, err := adapt_common.DelK8sDeployment(namespace, name, cluster, false)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [removeDefaultTask] ERROR (1)", err)
 		return "", err
 	} else if status == "200" {
 		// 2. SERVICE /////
-		status, err := delK8sService(namespace, name)
+		status, err := adapt_common.DelK8sService(namespace, name, cluster, false)
 		if err != nil {
 			log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [removeDefaultTask] ERROR (2)", err)
 			return "", err
@@ -86,11 +53,11 @@ func removeDefaultTask(namespace string, name string) (string, error) {
 }
 
 // removeCOMPSsTask: Deletes a COMPSs task
-func removeCOMPSsTask(namespace string, name string, dbtask structs.DB_TASK) (string, error) {
+func removeCOMPSsTask(namespace string, name string, dbtask structs.DB_TASK, cluster *imec_db.DB_INFRASTRUCTURE_CLUSTER) (string, error) {
 	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [removeCOMPSsTask] Deleting COMPSs task [" + name + "] from [" + namespace + "] ...")
 
 	// 1. DEPLOYMENT /////
-	status, err := delK8sDeployment(namespace, name)
+	status, err := adapt_common.DelK8sDeployment(namespace, name, cluster, false)
 	if err != nil {
 		log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [removeCOMPSsTask] ERROR (1)", err)
 		return "", err
@@ -98,7 +65,7 @@ func removeCOMPSsTask(namespace string, name string, dbtask structs.DB_TASK) (st
 		// 2. SERVICES /////
 		for _, pod := range dbtask.Pods {
 			// DB_TASK_POD
-			status, err := delK8sService(namespace, pod.Name)
+			status, err := adapt_common.DelK8sService(namespace, pod.Name, cluster, false)
 			if err != nil {
 				log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [removeCOMPSsTask] ERROR (2)", err)
 				return "", err
@@ -114,23 +81,25 @@ func removeCOMPSsTask(namespace string, name string, dbtask structs.DB_TASK) (st
 	return "", err
 }
 
-// RemoveTask: Deletes a task
-func RemoveTask(namespace string, name string) (string, error) {
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [RemoveTask] Deleting task [" + name + "] from [" + namespace + "] ...")
+/*
+RemoveTask Deletes a task
+*/
+func RemoveTask(dbTask structs.DB_TASK) (string, string, error) {
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [RemoveTask] Deleting task [" + dbTask.Id + "] ...")
 
-	// get type of task
-	dbTask, err := common.ReadTaskValue(name) // (*structs.DB_TASK, error)
-	if err == nil {
-		// remove task
-		if dbTask.Type == "default" {
-			removeDefaultTask(namespace, name)
-		} else if dbTask.Type == "compss" {
-			removeCOMPSsTask(namespace, name, *dbTask)
-		} else {
-			log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [RemoveTask] WARNING type of task is not defined: " + dbTask.Type)
-		}
+	clusterInfr, _ := imec_db.GetCluster(dbTask.ClusterId)
+	task := dbTask.TaskDefinition
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [RemoveTask] cluster id = " + dbTask.ClusterId + ", dock = " + task.Dock + "")
+
+	// remove task
+	if dbTask.Type == structs.DB_TASK_TYPE_DEFAULT {
+		res, err := removeDefaultTask(task.Dock, dbTask.Id, clusterInfr)
+		return res, dbTask.AgreementId, err
+	} else if dbTask.Type == structs.DB_TASK_TYPE_COMPSS {
+		res, err := removeCOMPSsTask(task.Dock, dbTask.Id, dbTask, clusterInfr)
+		return res, dbTask.AgreementId, err
 	}
 
-	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [RemoveTask] ERROR", err)
-	return "", err
+	log.Println("Rotterdam > CAAS > Adapters > Kubernetes > Termination [RemoveTask] WARNING type of task is not defined: " + dbTask.Type)
+	return "", "", nil
 }
